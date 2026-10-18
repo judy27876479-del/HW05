@@ -1,0 +1,2074 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>台灣去哪玩？互動出遊決策地圖 (Taiwan Travel Explorer)</title>
+    <meta name="description" content="為解決選擇障礙打造的台灣出遊決策地圖，整合全台縣市地標、必訪景點、特色小吃、一鍵隨機命運抽籤與願望清單私房筆記。" />
+    <meta property="og:title" content="台灣去哪玩？互動出遊決策地圖" />
+    <meta property="og:description" content="整合台灣地圖、城市地標與隨機抽取機制的輕量互動 Web App。" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Noto Sans TC"', '"Plus Jakarta Sans"', 'sans-serif'],
+            },
+            colors: {
+              teal: {
+                50: '#f0fdfa',
+                100: '#ccfbf1',
+                200: '#99f6e4',
+                500: '#14b8a6',
+                600: '#0d9488',
+                700: '#0f766e',
+                800: '#115e59',
+                900: '#134e4a',
+              }
+            }
+          }
+        }
+      }
+    </script>
+
+    <!-- Lucide Icons & Canvas Confetti CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+
+    <style>
+      /* Smooth transitions and scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+      }
+      .pin-pulse {
+        animation: pinPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      @keyframes pinPulse {
+        0%, 100% {
+          transform: scale(1);
+          opacity: 0.3;
+        }
+        50% {
+          transform: scale(1.8);
+          opacity: 0.05;
+        }
+      }
+    </style>
+  </head>
+  <body class="bg-slate-50 text-slate-900 font-sans antialiased selection:bg-teal-100 selection:text-teal-900 min-h-screen flex flex-col">
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200">
+      <div class="max-w-7xl mx-auto flex items-center justify-between gap-8 px-4 sm:px-6 py-3.5">
+        <!-- Zone 1: Wordmark -->
+        <a href="#" onclick="filterByRegion('all'); return false;" class="flex items-center gap-2.5 whitespace-nowrap shrink-0 group">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-teal-600 to-sky-500 text-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform">
+            <i data-lucide="compass" class="w-4 h-4"></i>
+          </div>
+          <span class="text-base sm:text-lg font-bold tracking-tight text-slate-900">
+            台灣去哪玩？
+          </span>
+        </a>
+
+        <!-- Zone 2: Navigation Links -->
+        <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600">
+          <button onclick="filterByRegion('all')" id="nav-all" class="nav-region-link hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 text-teal-700 font-semibold">
+            全台地圖
+          </button>
+          <button onclick="filterByRegion('north')" id="nav-north" class="nav-region-link hover:text-slate-900 transition-colors whitespace-nowrap shrink-0">
+            北部漫步
+          </button>
+          <button onclick="filterByRegion('central')" id="nav-central" class="nav-region-link hover:text-slate-900 transition-colors whitespace-nowrap shrink-0">
+            中部森活
+          </button>
+          <button onclick="filterByRegion('south')" id="nav-south" class="nav-region-link hover:text-slate-900 transition-colors whitespace-nowrap shrink-0">
+            南部古城
+          </button>
+          <button onclick="filterByRegion('east')" id="nav-east" class="nav-region-link hover:text-slate-900 transition-colors whitespace-nowrap shrink-0">
+            東部大山大海
+          </button>
+          <button onclick="filterByRegion('islands')" id="nav-islands" class="nav-region-link hover:text-slate-900 transition-colors whitespace-nowrap shrink-0">
+            外島秘境
+          </button>
+        </nav>
+
+        <!-- Zone 3: Primary Actions -->
+        <div class="flex items-center gap-2.5 shrink-0">
+          <button
+            onclick="toggleBucketDrawer(true)"
+            class="relative flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200/80 rounded-xl transition-all whitespace-nowrap shrink-0"
+            title="查看我的願望清單"
+          >
+            <i data-lucide="bookmark-check" class="w-4 h-4 text-teal-600"></i>
+            <span class="hidden sm:inline">願望清單</span>
+            <span id="header-bucket-count" class="bg-teal-600 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold tabular-nums">0</span>
+          </button>
+
+          <button
+            onclick="openRandomPickerModal()"
+            class="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-700 hover:to-sky-700 rounded-xl shadow-xs transition-all whitespace-nowrap shrink-0"
+          >
+            <i data-lucide="dice-5" class="w-3.5 h-3.5"></i>
+            <span>隨機決定出遊地</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col gap-6">
+      <!-- Search & Hero Banner -->
+      <section class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-5">
+        <div class="space-y-1">
+          <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+            台灣出遊決策地圖 · 探索山海與城市美味
+          </h1>
+          <p class="text-xs sm:text-sm text-slate-500">
+            告別放假選擇障礙！點擊地圖標記探索私房景點與米其林美食，或一鍵交給命運隨機抽籤。
+          </p>
+        </div>
+
+        <!-- Search Bar -->
+        <div class="relative w-full md:w-72 shrink-0">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+          <input
+            id="search-input"
+            type="text"
+            oninput="handleSearch(this.value)"
+            placeholder="搜尋城市、景點或美食..."
+            class="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 focus:border-teal-500 rounded-xl text-slate-800 placeholder:text-slate-400 focus:outline-none transition-colors"
+          />
+          <button
+            id="search-clear-btn"
+            onclick="clearSearch()"
+            class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+          >
+            ×
+          </button>
+        </div>
+      </section>
+
+      <!-- Region Filter Tabs -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+        <button onclick="filterByRegion('all')" id="pill-all" class="region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-slate-900 text-white shadow-xs">
+          全台探索
+        </button>
+        <button onclick="filterByRegion('north')" id="pill-north" class="region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-slate-900">
+          北部地區
+        </button>
+        <button onclick="filterByRegion('central')" id="pill-central" class="region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-slate-900">
+          中部地區
+        </button>
+        <button onclick="filterByRegion('south')" id="pill-south" class="region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-slate-900">
+          南部地區
+        </button>
+        <button onclick="filterByRegion('east')" id="pill-east" class="region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-slate-900">
+          東部地區
+        </button>
+        <button onclick="filterByRegion('islands')" id="pill-islands" class="region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-slate-900">
+          外島離島
+        </button>
+        <span id="region-count-badge" class="text-xs text-slate-400 ml-auto hidden sm:inline whitespace-nowrap pl-2">
+          共 19 個縣市地標
+        </span>
+      </div>
+
+      <!-- Mobile Tab Switcher -->
+      <div class="flex md:hidden items-center bg-slate-200/70 p-1 rounded-xl text-xs font-semibold">
+        <button onclick="switchMobileTab('map')" id="mobile-tab-btn-map" class="flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition-all">
+          互動地圖
+        </button>
+        <button onclick="switchMobileTab('details')" id="mobile-tab-btn-details" class="flex-1 py-1.5 rounded-lg text-slate-600 transition-all">
+          城市詳細指南
+        </button>
+      </div>
+
+      <!-- Main Layout: 2 Columns on Desktop -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Left: Interactive Taiwan Map & Quick Select (5 cols) -->
+        <div id="col-map" class="lg:col-span-5 space-y-4">
+          <!-- Taiwan SVG Map Card -->
+          <div class="relative w-full h-[580px] lg:h-[660px] bg-gradient-to-b from-sky-50/70 via-slate-50 to-teal-50/40 rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col justify-between p-4">
+            <!-- Map Top Controls -->
+            <div class="relative z-10 flex items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-teal-600/10 text-teal-700 flex items-center justify-center font-medium">
+                  <i data-lucide="compass" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h2 class="text-sm font-semibold text-slate-800">台灣探索地圖</h2>
+                  <p class="text-xs text-slate-500">點擊地圖標記即時查閱城市指南</p>
+                </div>
+              </div>
+
+              <!-- Map Zoom Buttons -->
+              <div class="flex items-center gap-1 bg-white/90 backdrop-blur-sm p-1 rounded-lg border border-slate-200/80 shadow-xs">
+                <button onclick="zoomMap(0.15)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors" title="放大地圖">
+                  <i data-lucide="zoom-in" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="zoomMap(-0.15)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors" title="縮小地圖">
+                  <i data-lucide="zoom-out" class="w-3.5 h-3.5"></i>
+                </button>
+                <button onclick="resetZoomMap()" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors" title="重設視角">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- SVG Container -->
+            <div class="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden">
+              <div id="map-zoom-wrapper" class="transition-transform duration-300 ease-out origin-center select-none">
+                <svg
+                  viewBox="0 0 540 680"
+                  class="w-[320px] sm:w-[380px] md:w-[420px] lg:w-[460px] h-auto drop-shadow-md"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <linearGradient id="mainIslandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#e0f2fe" />
+                      <stop offset="45%" stopColor="#ccfbf1" />
+                      <stop offset="100%" stopColor="#dcfce7" />
+                    </linearGradient>
+                  </defs>
+
+                  <!-- Marine Grid Lines -->
+                  <g opacity="0.35" stroke="#94a3b8" stroke-width="0.5" stroke-dasharray="3,6">
+                    <line x1="40" y1="120" x2="500" y2="120" />
+                    <line x1="40" y1="280" x2="500" y2="280" />
+                    <line x1="40" y1="460" x2="500" y2="460" />
+                    <line x1="160" y1="40" x2="160" y2="640" />
+                    <line x1="360" y1="40" x2="360" y2="640" />
+                  </g>
+
+                  <!-- Water Bodies Label -->
+                  <text x="35" y="440" fill="#94a3b8" font-size="11" font-weight="500" letter-spacing="3">台灣海峽 TAIWAN STRAIT</text>
+                  <text x="415" y="380" fill="#94a3b8" font-size="11" font-weight="500" letter-spacing="3">太平洋 PACIFIC OCEAN</text>
+                  <text x="320" y="55" fill="#94a3b8" font-size="10" font-weight="500" letter-spacing="2">東海 EAST CHINA SEA</text>
+                  <text x="180" y="650" fill="#94a3b8" font-size="10" font-weight="500" letter-spacing="2">巴士海峽 LUZON STRAIT</text>
+
+                  <!-- TAIWAN MAINLAND PATH -->
+                  <path
+                    d="M 390 85
+                       C 405 90, 428 92, 432 105
+                       C 436 122, 430 148, 420 178
+                       C 410 205, 400 240, 396 280
+                       C 390 325, 375 375, 345 425
+                       C 320 465, 290 500, 265 535
+                       C 245 560, 230 585, 218 615
+                       C 210 622, 198 620, 192 608
+                       C 185 595, 175 560, 170 520
+                       C 165 470, 155 430, 160 380
+                       C 165 350, 175 320, 190 290
+                       C 205 260, 225 230, 248 190
+                       C 270 160, 305 135, 335 115
+                       C 360 100, 378 82, 390 85 Z"
+                    fill="url(#mainIslandGrad)"
+                    stroke="#0d9488"
+                    stroke-width="2.2"
+                  />
+
+                  <!-- Central Mountain Range Spine -->
+                  <path
+                    d="M 380 150
+                       C 370 190, 360 230, 350 270
+                       C 338 315, 320 365, 300 415
+                       C 280 460, 255 510, 230 565"
+                    fill="none"
+                    stroke="#0f766e"
+                    stroke-width="14"
+                    stroke-linecap="round"
+                    stroke-opacity="0.18"
+                  />
+                  <path
+                    d="M 380 150
+                       C 370 190, 360 230, 350 270
+                       C 338 315, 320 365, 300 415
+                       C 280 460, 255 510, 230 565"
+                    fill="none"
+                    stroke="#0f766e"
+                    stroke-width="4"
+                    stroke-dasharray="4,8"
+                    stroke-linecap="round"
+                    stroke-opacity="0.4"
+                  />
+
+                  <!-- Outlying Islands -->
+                  <!-- Turtle Island -->
+                  <ellipse cx="445" cy="160" rx="9" ry="5" fill="#14b8a6" stroke="#0f766e" stroke-width="1.2" />
+                  <text x="445" y="152" fill="#0f766e" font-size="9" font-weight="600" text-anchor="middle">龜山島</text>
+
+                  <!-- Penghu -->
+                  <g class="cursor-pointer" onclick="selectDestination('penghu')">
+                    <ellipse cx="75" cy="335" rx="14" ry="18" fill="#bae6fd" stroke="#0284c7" stroke-width="1.5" />
+                    <ellipse cx="70" cy="320" rx="7" ry="10" fill="#bae6fd" stroke="#0284c7" stroke-width="1.2" />
+                    <ellipse cx="85" cy="348" rx="8" ry="9" fill="#bae6fd" stroke="#0284c7" stroke-width="1.2" />
+                  </g>
+
+                  <!-- Kinmen -->
+                  <g class="cursor-pointer" onclick="selectDestination('kinmen')">
+                    <path d="M 45 160 C 55 158, 62 165, 58 172 C 50 175, 42 168, 45 160 Z" fill="#fde68a" stroke="#d97706" stroke-width="1.5" />
+                  </g>
+
+                  <!-- Matsu -->
+                  <g class="cursor-pointer" onclick="selectDestination('matsu')">
+                    <circle cx="92" cy="55" r="7" fill="#bfdbfe" stroke="#2563eb" stroke-width="1.4" />
+                    <circle cx="104" cy="48" r="5" fill="#bfdbfe" stroke="#2563eb" stroke-width="1.2" />
+                  </g>
+
+                  <!-- Green & Orchid Island -->
+                  <ellipse cx="338" cy="485" rx="6" ry="7" fill="#99f6e4" stroke="#0d9488" stroke-width="1.2" />
+                  <text x="350" y="488" fill="#0f766e" font-size="9" font-weight="500">綠島</text>
+                  <ellipse cx="318" cy="565" rx="8" ry="10" fill="#99f6e4" stroke="#0d9488" stroke-width="1.2" />
+                  <text x="332" y="568" fill="#0f766e" font-size="9" font-weight="500">蘭嶼</text>
+
+                  <!-- DYNAMIC PINS CONTAINER -->
+                  <g id="map-pins-layer"></g>
+                </svg>
+              </div>
+
+              <!-- Hover Tooltip -->
+              <div id="map-hover-tooltip" class="hidden absolute bottom-4 left-4 right-4 sm:right-auto sm:max-w-xs bg-slate-900/90 text-white backdrop-blur-md px-3.5 py-2.5 rounded-xl shadow-lg border border-slate-700 pointer-events-none transition-all">
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span id="tooltip-title" class="font-semibold text-xs text-teal-300"></span>
+                  <span id="tooltip-duration" class="text-[10px] text-slate-300"></span>
+                </div>
+                <p id="tooltip-tagline" class="text-xs text-slate-200 line-clamp-1"></p>
+              </div>
+            </div>
+
+            <!-- Map Bottom Legend -->
+            <div class="relative z-10 pt-2 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+              <div class="flex items-center gap-3">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-500 inline-block"></span>都會探訪</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-teal-600 inline-block"></span>山海自然</span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-600 inline-block"></span>歷史人文</span>
+              </div>
+              <div class="text-slate-400">雙點或點擊標記即可切換</div>
+            </div>
+          </div>
+
+          <!-- Quick City Grid -->
+          <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-xs">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-800 mb-2.5">
+              <span>快速切換目的地</span>
+              <span class="text-[11px] text-slate-400 font-normal">點擊自動定位</span>
+            </div>
+            <div id="quick-city-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[190px] overflow-y-auto pr-1"></div>
+          </div>
+        </div>
+
+        <!-- Right: Destination Details Panel (7 cols) -->
+        <div id="col-details" class="lg:col-span-7">
+          <div id="destination-detail-container"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Quiet Footer -->
+    <footer class="mt-auto border-t border-slate-200/80 bg-white py-6 px-4 text-center text-xs text-slate-500">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-slate-800">台灣去哪玩？</span>
+          <span aria-hidden="true">·</span>
+          <span>Taiwan Travel Explorer</span>
+        </div>
+        <div class="text-slate-400">
+          單一檔案極速載入 · 本地儲存無須登入 · 祝福每趟旅程皆精彩難忘
+        </div>
+      </div>
+    </footer>
+
+    <!-- RANDOM PICKER MODAL -->
+    <div id="random-picker-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs">
+      <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-teal-50 to-sky-50">
+          <div class="flex items-center gap-2">
+            <div class="w-8 h-8 rounded-lg bg-teal-600 text-white flex items-center justify-center">
+              <i data-lucide="dice-5" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900">命運出遊隨機抽籤</h3>
+              <p class="text-xs text-slate-500">放假不知道去哪玩？交給命運！</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-1">
+            <button onclick="toggleAudioMute()" id="sound-toggle-btn" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors" title="音效開關">
+              <i data-lucide="volume-2" class="w-4 h-4"></i>
+            </button>
+            <button onclick="closeRandomPickerModal()" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6 overflow-y-auto space-y-5">
+          <!-- Filters (Hidden when rolling or won) -->
+          <div id="random-filters-section" class="space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200/80">
+            <div class="text-xs font-semibold text-slate-700">抽籤條件過濾（可選）：</div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1 font-medium">偏好地區：</label>
+              <div class="flex flex-wrap gap-1.5" id="random-region-filters"></div>
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-1 font-medium">旅遊風格：</label>
+              <div class="flex flex-wrap gap-1.5" id="random-style-filters"></div>
+            </div>
+          </div>
+
+          <!-- Rolling & Winner Stage -->
+          <div id="random-display-stage" class="relative min-h-[220px] bg-gradient-to-b from-slate-900 to-slate-800 rounded-2xl p-6 text-white text-center flex flex-col items-center justify-center border border-slate-700 shadow-inner overflow-hidden">
+            <div class="space-y-2" id="stage-idle-state">
+              <div class="w-12 h-12 rounded-full bg-white/10 text-teal-300 flex items-center justify-center mx-auto mb-2">
+                <i data-lucide="compass" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-xl font-bold text-white">準備好開啟未知冒險了嗎？</h4>
+              <p class="text-xs text-slate-300 max-w-xs">點擊下方按鈕，隨機抽取台灣下一個絕美角落！</p>
+            </div>
+
+            <div class="hidden space-y-2 animate-pulse" id="stage-rolling-state">
+              <div class="text-xs tracking-widest text-teal-400 font-semibold uppercase">DESTINY ROLLING · 抽取中</div>
+              <div id="rolling-city-name" class="text-4xl font-extrabold text-white scale-105 transition-all"></div>
+              <div id="rolling-tagline" class="text-xs text-slate-300"></div>
+            </div>
+
+            <div class="hidden space-y-3 z-10" id="stage-winner-state">
+              <div class="inline-flex items-center gap-1.5 text-xs font-bold text-amber-300 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-400/30">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i>
+                命運選中！這週末就出發
+              </div>
+              <div id="winner-city-name" class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight"></div>
+              <div id="winner-meta" class="text-xs text-teal-300 font-medium"></div>
+              <p id="winner-tagline" class="text-sm text-slate-200 max-w-sm font-medium"></p>
+              <div id="winner-highlights-box" class="bg-slate-800/80 rounded-xl p-3 border border-slate-700/80 text-left text-xs space-y-1.5 mt-2"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer Actions -->
+        <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3" id="random-modal-actions">
+          <button onclick="closeRandomPickerModal()" class="px-4 py-2.5 text-xs text-slate-600 hover:text-slate-900 font-medium">
+            取消
+          </button>
+          <button onclick="startRandomPicker()" id="start-roll-btn" class="px-6 py-2.5 bg-gradient-to-r from-teal-600 via-sky-600 to-indigo-600 hover:opacity-95 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center gap-2">
+            <i data-lucide="dice-5" class="w-4 h-4"></i>
+            <span>開始命運隨機抽籤！</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUCKET LIST DRAWER -->
+    <div id="bucket-list-drawer-backdrop" class="hidden fixed inset-0 z-50 flex justify-end bg-slate-950/40 backdrop-blur-xs">
+      <div class="w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-slate-200" onclick="event.stopPropagation()">
+        <!-- Header -->
+        <div class="p-5 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-teal-600 text-white flex items-center justify-center">
+              <i data-lucide="bookmark-check" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h2 class="text-base font-bold text-slate-900">出遊願望清單 & 私房筆記</h2>
+              <p id="bucket-drawer-subtitle" class="text-xs text-slate-500">已踩點打卡 0 / 0 個地點</p>
+            </div>
+          </div>
+
+          <button onclick="toggleBucketDrawer(false)" class="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="px-5 py-3 bg-white border-b border-slate-100">
+          <div class="flex items-center justify-between text-xs mb-1.5 font-medium">
+            <span class="text-slate-600">台灣踩點成就率</span>
+            <span id="bucket-progress-text" class="text-teal-700 font-bold tabular-nums">0%</span>
+          </div>
+          <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+            <div id="bucket-progress-bar" class="bg-gradient-to-r from-teal-500 to-sky-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Filter & Add Button -->
+        <div class="p-4 border-b border-slate-200/80 bg-white flex items-center justify-between gap-2">
+          <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-lg text-xs font-medium">
+            <button onclick="setBucketFilter('all')" id="bfilter-all" class="px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-2xs font-semibold">
+              全部
+            </button>
+            <button onclick="setBucketFilter('pending')" id="bfilter-pending" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900">
+              待出發
+            </button>
+            <button onclick="setBucketFilter('completed')" id="bfilter-completed" class="px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900">
+              已踩點
+            </button>
+          </div>
+
+          <button onclick="toggleCustomForm()" class="flex items-center gap-1 px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-medium">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>新增筆記</span>
+          </button>
+        </div>
+
+        <!-- Custom Item Form -->
+        <form id="custom-bucket-form" onsubmit="handleSaveCustomItem(event)" class="hidden p-4 bg-teal-50/60 border-b border-teal-100 space-y-3">
+          <div class="text-xs font-semibold text-teal-900 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-teal-600"></i>
+            自訂私房想去的景點或美食備忘
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-600 mb-1 font-medium">所在縣市：</label>
+            <select id="custom-dest-select" class="w-full text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-teal-500"></select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-600 mb-1 font-medium">名稱：</label>
+            <input type="text" id="custom-title-input" required placeholder="例如：隱藏老宅肉桂捲、合歡山銀河" class="w-full text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500" />
+          </div>
+
+          <div>
+            <label class="block text-[11px] text-slate-600 mb-1 font-medium">私人備忘筆記（可選）：</label>
+            <input type="text" id="custom-note-input" placeholder="例如：只開週末下午，需提早訂位" class="w-full text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-500" />
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button type="button" onclick="toggleCustomForm(false)" class="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900">取消</button>
+            <button type="submit" class="px-3.5 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-semibold hover:bg-teal-700">儲存筆記</button>
+          </div>
+        </form>
+
+        <!-- Items Container -->
+        <div id="bucket-items-list" class="flex-1 overflow-y-auto p-4 space-y-2.5"></div>
+
+        <!-- Footer Actions -->
+        <div class="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+          <button onclick="exportBucketListText()" class="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 hover:text-slate-900 border border-slate-200 bg-white rounded-lg transition-colors">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+            <span id="export-btn-label">匯出複製行程</span>
+          </button>
+          <span class="text-[11px] text-slate-400">自動同步儲存至瀏覽器</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATA & VANILLA JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+      // 1. DATASET
+      const TAIWAN_DATA = [
+        {
+          id: 'taipei',
+          name: '台北市',
+          englishName: 'Taipei',
+          region: 'north',
+          regionName: '北部地區',
+          tagline: '不夜魔幻都會 · 巷弄咖啡與老城光影',
+          vibeTags: ['捷運暢遊', '藝文展演', '深夜食堂', '古蹟新生'],
+          durationCategory: '1day',
+          durationText: '一日漫步～二天一夜',
+          recommendedSeason: '四季皆宜（秋日芒草與冬夜溫泉最佳）',
+          description: '台灣首善之都，融合了百年大稻埕閩南巴洛克洋樓、信義區璀璨天際線與遍布街角的高水準獨立咖啡店。便捷的捷運網絡串聯夜市小吃與世界級國家博物館。',
+          mapCoords: { x: 382, y: 122 },
+          climateTip: '盆地氣候夏季悶熱、冬季偶有陣雨，建議隨身攜帶輕便摺疊傘與悠遊卡。',
+          transportTips: '台北捷運與YouBike極度方便，近郊如陽明山、貓空皆有公車直達。',
+          accentColor: '#0ea5e9',
+          gradient: 'from-sky-500 to-blue-600',
+          styles: ['urban', 'food', 'culture'],
+          attractions: [
+            { name: '大稻埕迪化老街', category: '歷史文化', description: '走進清末與日治時期的南北貨與布莊街區，感受老宅茶行、中藥香與文創新聚落。', highlight: '霞海城隍廟祈求良緣、大稻埕碼頭貨櫃市集看夕陽', addressOrArea: '台北市大同區迪化街一段' },
+            { name: '陽明山國家公園與竹子湖', category: '自然秘境', description: '台北人的後花園，擁有火山地熱地質、春季海芋繡球花與秋季擎天崗銀白芒草步道。', highlight: '擎天崗草原野餐看水牛、小油坑地熱噴氣孔探秘', addressOrArea: '台北市北投區陽明山' },
+            { name: '松山文創園區 & 誠品生活', category: '文創藝術', description: '原日治松山菸廠改建，融合生態綠地、文創選品店與全台首座24小時誠品書店。', highlight: '探訪文創設計展、漫步巴洛克中庭花園', addressOrArea: '台北市信義區光復南路' },
+            { name: '饒河街觀光夜市', category: '夜市美食', description: '緊鄰松山慈祐宮，長達600公尺的直線型夜市，擁有獲米其林必比登推薦的多攤傳奇美食。', highlight: '剛出爐胡椒餅、藥燉排骨與彩虹橋夜景', addressOrArea: '台北市松山區饒河街' }
+          ],
+          delicacies: [
+            { name: '福州世祖胡椒餅', description: '炭火老甕現烤，肉汁爆漿外皮酥脆香脆。', tags: ['排隊名店', '米其林必比登'] },
+            { name: '紅燒半筋半肉牛肉麵', description: '濃郁牛骨豆瓣甘甜湯頭，牛筋滑嫩牛腩軟爛入口即化。', tags: ['台北代表', '老饕首選'] },
+            { name: '鼎泰豐小籠湯包', description: '極致18摺皮薄餡飽，鮮甜湯汁滿溢。', tags: ['國際知名', '精緻台菜'] }
+          ]
+        },
+        {
+          id: 'new-taipei',
+          name: '新北市',
+          englishName: 'New Taipei',
+          region: 'north',
+          regionName: '北部地區',
+          tagline: '黃金山城秘境 · 蔚藍北海岸峽灣',
+          vibeTags: ['山城懷舊', '蔚藍海景', '老街散策', '溫泉泡湯'],
+          durationCategory: '2days',
+          durationText: '二天一夜深度遊',
+          recommendedSeason: '四季皆宜（秋高氣爽訪九份最浪漫）',
+          description: '環繞台北市的遼闊大都會，擁有九份金瓜石的黃金傳奇、野柳女王頭奇岩地質，以及淡水河畔的浪漫夕陽與烏來泰雅族山林溫泉。',
+          mapCoords: { x: 405, y: 138 },
+          climateTip: '沿海與山區風勢較大且多雨，造訪山城建議穿著防滑好走平底鞋。',
+          transportTips: '搭乘台鐵平溪深澳線走訪鐵道風情，北海岸可搭乘台灣好行公車。',
+          accentColor: '#0284c7',
+          gradient: 'from-blue-500 to-indigo-600',
+          styles: ['nature', 'culture', 'food'],
+          attractions: [
+            { name: '九份老街與金瓜石十三層', category: '歷史文化', description: '依山傍海的採金山城，層疊紅燈籠拾級而上，遠眺基隆嶼與陰陽海奇景。', highlight: '阿妹茶樓品茗看海、金瓜石黃金博物館摸220kg大金磚', addressOrArea: '新北市瑞芳區基山街' },
+            { name: '淡水漁人碼頭與紅毛城', category: '美拍打卡', description: '漫步荷蘭時代城堡，搭乘情人橋渡輪欣賞被譽為台灣最美夕陽的淡水暮色。', highlight: '傍晚沿金色水岸散步、品嚐道地阿給與魚丸湯', addressOrArea: '新北市淡水區觀海路' },
+            { name: '烏來溫泉與觀瀑台車', category: '休閒體驗', description: '搭乘懷舊迷你台車穿梭山谷，體驗無色無味的「美人湯」碳酸氫鈉泉。', highlight: '享用原住民竹筒飯、馬告烤香腸與觀賞烏來壯麗瀑布', addressOrArea: '新北市烏來區烏來街' }
+          ],
+          delicacies: [
+            { name: '淡水阿給 & 魚酥', description: '油豆腐塞冬粉以魚漿封口，淋上特調甜辣醬汁。', tags: ['老街必吃', '平民小吃'] },
+            { name: '九份現捏芋圓地瓜圓', description: '口感Q彈天然香甜，冷熱皆宜眺望海景品嘗。', tags: ['排隊熱門', '甜點首選'] },
+            { name: '深坑現烤臭豆腐', description: '獨特炭烤香氣搭配酸甜泡菜與香菜。', tags: ['深坑老街', '在地名產'] }
+          ]
+        },
+        {
+          id: 'keelung',
+          name: '基隆市',
+          englishName: 'Keelung',
+          region: 'north',
+          regionName: '北部地區',
+          tagline: '雨都港灣奇岩 · 澎湃現撈海鮮聖地',
+          vibeTags: ['海港風情', '廟口老味道', '壯麗海蝕崖', '色彩屋碼頭'],
+          durationCategory: '1day',
+          durationText: '一日輕旅行',
+          recommendedSeason: '春夏季晴朗好天氣最適合賞海景',
+          description: '歷史悠久的大型天然港灣，擁有獲全球讚譽的廟口夜市百年攤位，更有「台版威尼斯」正濱漁港彩色屋與和平島百萬年海蝕奇岩地景。',
+          mapCoords: { x: 425, y: 105 },
+          climateTip: '雨都潮濕偶有雨，建議攜帶雨具，但海港雨中散步亦別有一番電影氛圍。',
+          transportTips: '台北車站搭台鐵區間車40分鐘即抵基隆市中心，轉乘市區公車可到各沿海景點。',
+          accentColor: '#0369a1',
+          gradient: 'from-sky-600 to-cyan-700',
+          styles: ['food', 'nature', 'urban'],
+          attractions: [
+            { name: '正濱漁港彩色屋 & 潮境公園', category: '美拍打卡', description: '繽紛色彩造就童話般港灣倒影，潮境公園更有巨型飛天掃帚與遼闊無敵海景。', highlight: '打卡台版威尼斯彩色屋、傍晚賞基隆嶼日落', addressOrArea: '基隆市中正區正濱路' },
+            { name: '基隆廟口夜市', category: '夜市美食', description: '環繞奠濟宮展開，整齊黃色燈籠下匯集鼎邊趖、泡泡冰、營養三明治等百年美食。', highlight: '一條街吃遍70餘家傳承數代的經典台灣海鮮小吃', addressOrArea: '基隆市仁愛區仁三路' }
+          ],
+          delicacies: [
+            { name: '百年邢記鼎邊趖', description: '在來米磨漿蒸製米糊，搭配肉羹、蝦仁羹與金針清甜高湯。', tags: ['廟口招牌', '百年傳承'] },
+            { name: '廟口營養三明治', description: '炸得金黃香酥的長條麵包，夾入滷蛋、番茄、火腿與美乃滋。', tags: ['人氣排隊', '古早滋味'] },
+            { name: '遠東泡泡冰', description: '手工以大匙現打現刨，花生與百香果綿密滑順。', tags: ['消暑聖品', '基隆必嘗'] }
+          ]
+        },
+        {
+          id: 'yilan',
+          name: '宜蘭縣',
+          englishName: 'Yilan',
+          region: 'north',
+          regionName: '北部地區',
+          tagline: '蘭陽水田綠意 · 礁溪溫泉與龜山島秘境',
+          vibeTags: ['溫泉慢活', '田園咖啡', '賞鯨牛奶海', '親子農場'],
+          durationCategory: '2days',
+          durationText: '二天一夜慢步調',
+          recommendedSeason: '春夏賞鯨出海、秋冬礁溪泡湯',
+          description: '穿過雪山隧道即見廣袤蘭陽平原與太平洋守護者龜山島。以礁溪美人湯、三星蔥田手作體驗與極致美味的櫻桃烤鴨聞名遐邇。',
+          mapCoords: { x: 420, y: 172 },
+          climateTip: '冬季東北季風迎風面多雨，出遊前可預訂溫泉飯店與室內觀光工場。',
+          transportTips: '台北轉運站搭乘客運約50分鐘抵礁溪或宜蘭，當地租車或包車自駕最愜意。',
+          accentColor: '#059669',
+          gradient: 'from-emerald-500 to-teal-700',
+          styles: ['nature', 'food', 'island'],
+          attractions: [
+            { name: '礁溪溫泉公園與湯圍溝', category: '休閒體驗', description: '全台唯一的平地溫泉，水質清澈無硫磺味，設有免費大眾足湯與溫泉魚體驗。', highlight: '戶外日式湯屋、林間足湯放鬆身心', addressOrArea: '宜蘭縣礁溪鄉德陽路' },
+            { name: '龜山島繞島登島 & 牛奶海SUP', category: '自然秘境', description: '活火山地熱噴發與深藍海水交織出仙境般的Tiffany藍牛奶海，春夏賞鯨豚率極高。', highlight: '包船體驗立槳SUP巡航牛奶海、探尋島上海蝕洞', addressOrArea: '宜蘭縣頭城鎮烏石港搭船' },
+            { name: '太平山見晴懷古步道', category: '自然秘境', description: '被評為全球最美28條小徑之一，雲霧繚繞的舊鐵道林道，充滿古老檜木芬多精。', highlight: '乘坐蹦蹦車穿梭高山森林、鳩之澤煮溫泉蛋', addressOrArea: '宜蘭縣大同鄉太平巷' }
+          ],
+          delicacies: [
+            { name: '蘭城晶英櫻桃霸王鴨五吃', description: '櫻桃鴨握壽司油脂香脆濃郁，鴨肉絲熬粥鮮醇無比。', tags: ['全台最強烤鴨', '極致美味'] },
+            { name: '現煎三星蔥油餅', description: '滿滿翠綠三星蔥包裹在酥脆麵皮裡，蔥汁飽滿甘甜。', tags: ['在地特產', '銅板美食'] },
+            { name: '阿宗芋冰城', description: '遵循古法製作的叭噗冰，真材實料吃得到芋頭顆粒。', tags: ['頭城老字號', '童年回憶'] }
+          ]
+        },
+        {
+          id: 'taoyuan',
+          name: '桃園市',
+          englishName: 'Taoyuan',
+          region: 'north',
+          regionName: '北部地區',
+          tagline: '千塘水鄉之都 · 復興拉拉山神木森呼吸',
+          vibeTags: ['千塘風貌', '水族生態', '原民高山', '眷村文創'],
+          durationCategory: '1day',
+          durationText: '一日輕旅行～二天一夜',
+          recommendedSeason: '四季皆宜（拉拉山夏季避暑採水蜜桃、秋季賞楓）',
+          description: '台灣的國門之都，擁有特殊的千塘之鄉地貌。青埔特區匯集國際級都會水生公園與OUTLET，往南更有大溪老街豆干香與復興區壯闊千年檜木巨木群。',
+          mapCoords: { x: 345, y: 145 },
+          climateTip: '台地冬季季風強勁偏冷，前往拉拉山高山區域建議攜帶保暖防風外套。',
+          transportTips: '高鐵桃園站直通機捷與青埔商圈，前往大溪老街可自中壢或桃園車站轉乘台灣好行。',
+          accentColor: '#2563eb',
+          gradient: 'from-blue-600 to-indigo-700',
+          styles: ['nature', 'culture', 'urban'],
+          attractions: [
+            { name: '大溪老街與木藝生態博物館', category: '歷史文化', description: '巴洛克式華麗雕花立面街屋，傳統木藝職人聚落與飄香數十載的大溪黑豆干。', highlight: '老街品嚐現滷熱豆干、參觀壹號館日式木造官舍', addressOrArea: '桃園市大溪區和平路' },
+            { name: 'Xpark 都會型水生公園', category: '休閒體驗', description: '由日本橫濱八景島策劃的當代水族館，以光影沉浸藝術與企鵝咖啡廳引人入勝。', highlight: '癒見水母奇幻鏡面光影秀、萬尾銀鯓群游大水槽', addressOrArea: '桃園市中壢區春德路' }
+          ],
+          delicacies: [
+            { name: '大溪現滷黃日香黑豆干', description: '獨特焦糖色澤以特製滷汁慢熬，豆香濃郁微辣多汁。', tags: ['老街招牌', '名產必買'] },
+            { name: '忠貞市場米干與破酥包', description: '雲南滇緬眷村特色，純米研磨濃湯加入豬肝半熟蛋。', tags: ['異國風情', '排隊早餐'] }
+          ]
+        },
+        {
+          id: 'hsinchu',
+          name: '新竹縣市',
+          englishName: 'Hsinchu',
+          region: 'north',
+          regionName: '北部地區',
+          tagline: '風城科技古韻 · 客家老街擂茶與司馬庫斯',
+          vibeTags: ['上帝的部落', '客家美食', '城隍廟小吃', '風城工藝'],
+          durationCategory: '2days',
+          durationText: '一日漫步～二天一夜',
+          recommendedSeason: '秋季九降風吹起正是新埔曬柿餅最壯觀季節',
+          description: '素有「風城」之稱的歷史古城，同時擁有台灣矽谷與豐厚的客家風情。走進全台最深山部落司馬庫斯探索巨木群，或在新竹都城隍廟嚐遍百年米粉貢丸。',
+          mapCoords: { x: 310, y: 172 },
+          climateTip: '秋冬「九降風」風力強勁，帽子與圍巾必備；高山部落須留意入山管制與保暖。',
+          transportTips: '高鐵新竹站與台鐵六家線互通，前往司馬庫斯或北埔老街建議預約包車或自駕。',
+          accentColor: '#0891b2',
+          gradient: 'from-cyan-600 to-teal-800',
+          styles: ['nature', 'culture', 'food'],
+          attractions: [
+            { name: '司馬庫斯（上帝的部落）', category: '自然秘境', description: '遺世獨立的泰雅族高山部落，坐擁2500年樹齡的壯麗巨木群步道與壯麗星空。', highlight: '仰望「大老爺神木」、體驗純樸部落共享生活文化', addressOrArea: '新竹縣尖石鄉玉峰村' },
+            { name: '新竹都城隍廟與東門城', category: '歷史文化', description: '全台位階最高城隍廟，廟埕周圍匯集了傳承百年的肉圓、貢丸與米粉老店。', highlight: '迎曦門古蹟廣場散步、探訪廟埕紅糟肉圓', addressOrArea: '新竹市北區中山路' }
+          ],
+          delicacies: [
+            { name: '彈牙海瑞貢丸湯 & 炊米粉', description: '純豬後腿肉槌打，肉香四溢咬下爆汁，米粉細緻有嚼勁。', tags: ['風城第一', '百年老店'] },
+            { name: '北埔擂茶與客家粄條', description: '自己動手研磨茶葉、芝麻與花生，溫潤回甘佐客家油蔥鹹粄條。', tags: ['客家特色', 'DIY樂趣'] }
+          ]
+        },
+        {
+          id: 'miaoli',
+          name: '苗栗縣',
+          englishName: 'Miaoli',
+          region: 'central',
+          regionName: '中部地區',
+          tagline: '山城桐花木雕 · 舊山線鐵道鐵馬吹微風',
+          vibeTags: ['鐵道漫遊', '客家陶藝', '春日桐花', '大湖草莓'],
+          durationCategory: '2days',
+          durationText: '二天一夜渡假遊',
+          recommendedSeason: '冬季採大湖草莓、春季賞五月雪油桐花',
+          description: '浪漫台三線上的慢城勝地，擁有三義木雕藝術村、舊山線鐵道自行車奔馳於龍騰斷橋之上，是遠離都市塵囂、親近自然綠意與陶藝手作的首選。',
+          mapCoords: { x: 275, y: 205 },
+          climateTip: '山城春季多霧、早晚溫差顯著，建議洋蔥式穿搭。',
+          transportTips: '搭乘台鐵至三義車站，租借機車或搭計程車即可暢遊龍騰斷橋與木雕街。',
+          accentColor: '#10b981',
+          gradient: 'from-emerald-600 to-green-700',
+          styles: ['nature', 'culture'],
+          attractions: [
+            { name: '舊山線鐵道自行車 & 龍騰斷橋', category: '休閒體驗', description: '騎乘電動鐵道車橫越33公尺高的魚藤坪鐵橋，近距離俯瞰百年紅磚殘拱巨構。', highlight: '穿梭夢幻七彩燈光隧道、俯瞰斷橋滄桑之美', addressOrArea: '苗栗縣三義鄉勝興村' },
+            { name: '大湖草莓文化館與採果園', category: '休閒體驗', description: '全台草莓最大產區，冬季草莓季時滿園香甜，更發展出草莓香腸、草莓貢丸等獨特美食。', highlight: '親手摘採鮮紅大草莓、品嚐草莓泡芙與特色冰品', addressOrArea: '苗栗縣大湖鄉富興村' }
+          ],
+          delicacies: [
+            { name: '三義客家傳統水晶餃', description: '手工地瓜粉揉製外皮晶瑩剔透，內餡黑胡椒豬肉餡鹹香鮮美。', tags: ['三義必吃', '客家風味'] },
+            { name: '大湖鮮採草莓大福', description: '薄透麻糬包裹香甜紅豆沙與多汁草莓，酸甜完美平衡。', tags: ['冬季限定', '少女心甜點'] }
+          ]
+        },
+        {
+          id: 'taichung',
+          name: '台中市',
+          englishName: 'Taichung',
+          region: 'central',
+          regionName: '中部地區',
+          tagline: '日光美學之城 · 歌劇院光影與全台最大夜市',
+          vibeTags: ['當代建築', '夜市旗艦', '高美濕地', '甜點下午茶'],
+          durationCategory: '2days',
+          durationText: '二天一夜都會假期',
+          recommendedSeason: '四季皆宜（秋季天氣穩定宜人，日落最美）',
+          description: '氣候宜人的文化休閒樞紐，擁有伊東豊雄設計的台中國家歌劇院、綠園道文創聚落、高美濕地絕美風車夕陽，以及全台美食實驗場——逢甲夜市。',
+          mapCoords: { x: 240, y: 245 },
+          climateTip: '台中長年降雨較少陽光充沛，夏季紫外線強烈注意防曬補水。',
+          transportTips: '台中捷運綠線已通車，市區公車享市民搭乘優惠，亦推薦租乘機車或開車自駕。',
+          accentColor: '#0284c7',
+          gradient: 'from-sky-500 to-indigo-600',
+          styles: ['urban', 'food', 'nature', 'culture'],
+          attractions: [
+            { name: '台中國家歌劇院 & 審計新村', category: '文創藝術', description: '世界九大新地標之一的無樑柱「美聲涵洞」建築，散步至審計新村逛青年文創市集。', highlight: '頂樓空中花園漫步、美聲涵洞聆聽回音迴響', addressOrArea: '台中市西屯區惠來路二段' },
+            { name: '高美濕地（天空之鏡）', category: '自然秘境', description: '擁有全台最大的雲林莞草區，夕陽西下時海天一色被譽為「台灣的天空之鏡」。', highlight: '木棧道盡頭踏水看夕陽、觀察招潮蟹與彈塗魚', addressOrArea: '台中市清水區美堤街' },
+            { name: '逢甲國際觀光夜市', category: '夜市美食', description: '全台灣流行美食的創新發源地，明倫蛋餅、官芝霖大腸包小腸皆發源於此。', highlight: '品嚐創意排隊新奇小吃、平價時尚服飾血拼', addressOrArea: '台中市西屯區文華路' }
+          ],
+          delicacies: [
+            { name: '官芝霖大腸包小腸', description: '炭烤米腸夾入多汁香腸，搭配花生粉、酸菜、小黃瓜與蒜頭。', tags: ['逢甲傳奇', '排隊美食'] },
+            { name: '宮原眼科冰淇淋', description: '日治老眼科醫院改造，數十種台灣水果與頂級巧克力冰淇淋。', tags: ['台中地標', '文創美學'] },
+            { name: '傳統太陽餅與檸檬餅', description: '層層酥皮包裹麥芽香甜，搭配午茶絕配伴手禮。', tags: ['百年伴手禮', '台中必買'] }
+          ]
+        },
+        {
+          id: 'changhua',
+          name: '彰化縣',
+          englishName: 'Changhua',
+          region: 'central',
+          regionName: '中部地區',
+          tagline: '八卦大佛古城 · 鹿港九曲巷老屋慢遊',
+          vibeTags: ['百年肉圓', '鹿港小鎮', '八卦山景', '扇形車庫'],
+          durationCategory: '1day',
+          durationText: '一日懷舊輕旅行',
+          recommendedSeason: '四季皆宜（秋冬涼爽適合漫遊老街）',
+          description: '一府二鹿三艋舺，鹿港小鎮完整保留了紅磚九曲巷、摸乳巷與天后宮媽祖廟香火。更有全台唯一的國寶級活化石——「彰化扇形車庫」火車頭旅館。',
+          mapCoords: { x: 215, y: 280 },
+          climateTip: '彰化氣候平穩，夏季正午炎熱，漫步老街時留意遮陽。',
+          transportTips: '自台中搭台鐵15分鐘即可抵彰化火車站，出站步行可抵扇形車庫與知名肉圓店。',
+          accentColor: '#d97706',
+          gradient: 'from-amber-600 to-orange-700',
+          styles: ['culture', 'food'],
+          attractions: [
+            { name: '鹿港老街與天后宮', category: '歷史文化', description: '穿梭古老閩南紅磚洋樓，尋訪九曲巷的避風防盜智慧與十宜樓書香風雅。', highlight: '摸乳巷探秘、天后宮祈福、品嚐麵茶古早味', addressOrArea: '彰化縣鹿港鎮瑤林街' },
+            { name: '彰化扇形車庫（國定古蹟）', category: '歷史文化', description: '全台唯一保存完好的扇形鐵道調車轉盤，蒸汽火車頭依舊在此整備喘息。', highlight: '登觀景台俯瞰十二股道火車車庫、觀賞調頭轉盤', addressOrArea: '彰化縣彰化市彰美路一段' }
+          ],
+          delicacies: [
+            { name: '阿璋肉圓 & 北門口炸肉圓', description: '低溫油泡外皮軟Q vs 高溫脆皮爆汁，包入大塊香菇與厚切豬肉。', tags: ['九把刀電影', '肉圓發源地'] },
+            { name: '老龍師肉包', description: '老麵發酵外皮帶著微甜彈性，內餡香菇鮮筍肉汁豐沛。', tags: ['排隊名店', '鹿港必買'] },
+            { name: '彰化爌肉飯', description: '以牙籤串起厚切三層肉，老滷汁慢火燉至豬皮膠質黏唇化開。', tags: ['宵夜早餐皆有', '彰化靈魂'] }
+          ]
+        },
+        {
+          id: 'nantou',
+          name: '南投縣',
+          englishName: 'Nantou',
+          region: 'central',
+          regionName: '中部地區',
+          tagline: '日月水沙連仙境 · 清境合歡雲端大景',
+          vibeTags: ['高山星空', '湖光山色', '頂級茶香', '雲海草原'],
+          durationCategory: '2days',
+          durationText: '二天一夜～三天兩夜度假',
+          recommendedSeason: '四季皆美（秋高氣爽日月潭萬人泳渡、冬季合歡山雪景）',
+          description: '台灣唯一不靠海的內陸縣，卻坐擁全台最夢幻的「日月潭」與歐風「清境農場」，更是攀登合歡山公路百岳、探索溪頭杉林溪森林浴的避暑天堂。',
+          mapCoords: { x: 285, y: 280 },
+          climateTip: '山區午後容易起濃霧降溫，開車請開霧燈減速，隨身準備禦寒厚衣物。',
+          transportTips: '自台中高鐵站搭乘台灣好行日月潭線或清境線，交通銜接順暢。',
+          accentColor: '#0d9488',
+          gradient: 'from-teal-600 to-emerald-800',
+          styles: ['nature', 'food', 'culture'],
+          attractions: [
+            { name: '日月潭環湖自行車道 & 向山遊客中心', category: '美拍打卡', description: '入選CNN全球十大最美自行車道，騎乘水上單車道遠眺慈恩塔與水色瀲灩。', highlight: '向山落羽松水上自行車道、清水模鏡面水池', addressOrArea: '南投縣魚池鄉中山路' },
+            { name: '清境農場青青草原 & 合歡山暗空公園', category: '自然秘境', description: '綿延如茵的翠綠高山草原，可愛綿羊秀與全台首座國際認證暗空星空守護地。', highlight: '近距離餵食柯麗黛綿羊、武嶺合歡山看壯闊雲海銀河', addressOrArea: '南投縣仁愛鄉仁和路' }
+          ],
+          delicacies: [
+            { name: '日月潭阿薩姆紅茶蛋 & 紅玉18號', description: '台茶18號慢火滷製香菇茶葉蛋，香氣撲鼻甘醇回甜。', tags: ['玄光寺必買', '頂級台灣茶'] },
+            { name: '埔里胡國雄古早麵', description: '切仔麵淋上紅蔥頭肉燥，搭配豬肝、粉腸與紹興酒蛋。', tags: ['埔里老店', '家常古早味'] },
+            { name: '清境原住民竹筒飯與擺夷料理', description: '香糯紫米竹香四溢，搭配錦灑與香酥風味。', tags: ['異族料理', '山產美味'] }
+          ]
+        },
+        {
+          id: 'yunlin',
+          name: '雲林縣',
+          englishName: 'Yunlin',
+          region: 'central',
+          regionName: '中部地區',
+          tagline: '布袋戲原鄉 · 北港朝天宮香火與古坑咖啡',
+          vibeTags: ['宗教朝聖', '布袋戲曲', '高山咖啡', '農業糧倉'],
+          durationCategory: '1day',
+          durationText: '一日文化輕旅行',
+          recommendedSeason: '農曆三月媽祖迎熱鬧、秋冬古坑咖啡節',
+          description: '台灣最大的農業糧倉與掌中戲（布袋戲）故鄉。北港朝天宮是全台媽祖信仰重鎮，古坑華山則是台灣高山咖啡發源地，更擁有西螺大橋紅鐵橋宏偉歷史。',
+          mapCoords: { x: 195, y: 325 },
+          climateTip: '雲林日照充足溫暖，春秋季造訪氣候最適中。',
+          transportTips: '高鐵雲林站位於虎尾，鄰近布袋戲館，轉乘公車或計程車可至北港與西螺。',
+          accentColor: '#c2410c',
+          gradient: 'from-orange-600 to-amber-700',
+          styles: ['culture', 'food'],
+          attractions: [
+            { name: '北港朝天宮與宮口老街', category: '歷史文化', description: '國定古蹟朝天宮，三百年媽祖香火鼎盛，老街兩旁林立麻油、花生酥與狀元餅老鋪。', highlight: '參拜天上聖母、品嚐假魚肚羹與生炒鴨肉羹', addressOrArea: '雲林縣北港鎮中山路' },
+            { name: '古坑華山咖啡休閒農業區', category: '休閒體驗', description: '沿著山路眺望雲林夜景，品味台灣在地種植阿拉比卡咖啡，享受山間慢活。', highlight: '景觀咖啡廳看嘉南平原百萬夜景、走訪小天梯步道', addressOrArea: '雲林縣古坑鄉華山村' }
+          ],
+          delicacies: [
+            { name: '北港生炒鴨肉羹', description: '大火快炒焦香鴨肉與清脆筍絲，湯頭以紅蔥頭及醋香勾芡微甜。', tags: ['北港招牌', '老饕回味'] },
+            { name: '西螺純釀黑豆醬油 & 碗粿', description: '陶甕日曝180天古法純釀，搭配蒸得滑嫩米香的古早味油蔥碗粿。', tags: ['西螺名產', '傳統工藝'] }
+          ]
+        },
+        {
+          id: 'chiayi',
+          name: '嘉義縣市',
+          englishName: 'Chiayi',
+          region: 'south',
+          regionName: '南部地區',
+          tagline: '阿里山日出雲海 · 木都檜木森活與火雞肉飯',
+          vibeTags: ['高山小火車', '火雞肉飯', '檜意森活', '巨木森林'],
+          durationCategory: '2days',
+          durationText: '二天一夜～三天兩夜慢旅行',
+          recommendedSeason: '春季阿里山櫻花季、秋冬觀賞壯麗雲海日出',
+          description: '阿里山森林鐵路的起點「木都」，擁有全台最密集的日式木造官舍聚落「檜意森活村」，街頭巷尾飄散著令人魂牽夢縈的火雞肉飯香氣。',
+          mapCoords: { x: 215, y: 375 },
+          climateTip: '嘉義市區溫暖，但阿里山海拔2200公尺以上，氣溫常比平地低12~15度，必帶厚羽絨衣。',
+          transportTips: '搭乘阿里山森林鐵路本線小火車從嘉義火車站直上奮起湖與阿里山園區。',
+          accentColor: '#15803d',
+          gradient: 'from-green-700 to-emerald-900',
+          styles: ['nature', 'food', 'culture'],
+          attractions: [
+            { name: '阿里山國家森林遊樂區 & 祝山日出', category: '自然秘境', description: '五奇勝景：日出、雲海、鐵道、森林、晚霞。走在千年巨木棧道森呼吸。', highlight: '清晨搭祝山線火車迎接金色第一道晨光、姊妹潭幽靜倒影', addressOrArea: '嘉義縣阿里山鄉中正村' },
+            { name: '檜意森活村 & 嘉義市立美術館', category: '歷史文化', description: '全台最大日式官舍建築群，散發天然紅檜香氣，如今改造成文創選物與茶屋聚落。', highlight: '體驗日式浴衣穿搭漫步檜木庭園、打卡新舊共融綠建築', addressOrArea: '嘉義市東區林森東路' }
+          ],
+          delicacies: [
+            { name: '嘉義道地火雞肉飯', description: '手撕多汁火雞肉絲或腿肉丁，澆上滾燙香醇雞油蔥酥，香氣爆發。', tags: ['全台無敵', '嘉義之魂'] },
+            { name: '林聰明沙鍋魚頭', description: '扁魚蝦米熬製醇厚濃湯，大白菜甜軟，配上炸至金黃的大頭鰱魚頭。', tags: ['Netflix推薦', '超人氣排隊'] },
+            { name: '源興御香屋紅鑽葡萄柚綠茶', description: '滿杯現剝新鮮葡萄柚果肉加酸梅，酸甜解膩排隊神飲。', tags: ['嘉義排隊飲料', '果香十足'] }
+          ]
+        },
+        {
+          id: 'tainan',
+          name: '台南市',
+          englishName: 'Tainan',
+          region: 'south',
+          regionName: '南部地區',
+          tagline: '台灣歷史開端 · 美食之都與紅磚老巷漫遊',
+          vibeTags: ['小吃天花板', '古蹟巡禮', '老宅咖啡', '全糖城市'],
+          durationCategory: '2days',
+          durationText: '二天一夜～三天兩夜吃不停',
+          recommendedSeason: '秋冬氣候乾燥舒爽最宜人，避開七八月盛夏酷熱',
+          description: '四百年歷史的文化古都，全台小吃密度之最。安平古堡、赤嵌樓見證荷治清領光陰，正興街、神農街老宅改裝文創咖啡館，隨便走進一家小攤都是數十年功力。',
+          mapCoords: { x: 175, y: 425 },
+          climateTip: '陽光充足氣候溫和，隨身準備遮陽帽，建議租乘機車最方便穿梭老巷。',
+          transportTips: '高鐵台南站可轉乘台鐵沙崙支線20分鐘直達台南火車站，市區騎YouBike亦極為便利。',
+          accentColor: '#e11d48',
+          gradient: 'from-rose-500 to-red-700',
+          styles: ['food', 'culture', 'urban'],
+          attractions: [
+            { name: '神農街老街與台南美術館二館', category: '歷史文化', description: '清代五條港古老木造街屋，夜幕垂掛大紅燈籠；轉身走入普立茲克得主設計的純白幾何美術館。', highlight: '入夜探訪神農街老宅酒吧、登南美館頂樓五角階梯', addressOrArea: '台南市中西區神農街' },
+            { name: '安平古堡與安平樹屋', category: '歷史文化', description: '熱蘭遮城殘蹟與百年大榕樹盤根錯節吞噬倉庫的奇幻共生景觀。', highlight: '漫步紅磚古城牆、逛安平老街品嚐蝦捲與豆花', addressOrArea: '台南市安平區國勝路' },
+            { name: '奇美博物館與都會公園', category: '文創藝術', description: '希臘神殿式宏偉建築、阿波羅噴泉與奧林帕斯橋，收藏西方古典藝術與世界頂級名琴。', highlight: '打卡歐洲宮廷水池倒影、觀賞羅丹沉思者真跡雕塑', addressOrArea: '台南市仁德區文華路二段' }
+          ],
+          delicacies: [
+            { name: '溫體現沖牛肉湯', description: '當日清晨現宰溫體黃牛肉，滾燙高湯淋下粉嫩半熟，沾薑絲甜油膏。', tags: ['台南早餐傳奇', '鮮甜肉嫩'] },
+            { name: '鱔魚意麵（炒焦香/羹）', description: '大火鑊氣快炒，洋蔥脆口鱔魚彈牙，特製烏醋甜酸醬汁包裹炸意麵。', tags: ['鑊氣十足', '經典台南甜'] },
+            { name: '富盛號碗粿 & 金得春捲', description: '國華街必吃組合，黑豆醬油炒肉燥米漿，蒸出深色微Q靈魂滋味。', tags: ['永樂市場', '銅板米其林'] }
+          ]
+        },
+        {
+          id: 'kaohsiung',
+          name: '高雄市',
+          englishName: 'Kaohsiung',
+          region: 'south',
+          regionName: '南部地區',
+          tagline: '港灣巨構新生 · 駁二流行音樂與大港夕照',
+          vibeTags: ['輕軌港灣', '當代藝文', '海港落日', '旗津渡輪'],
+          durationCategory: '2days',
+          durationText: '二天一夜都會假期',
+          recommendedSeason: '秋冬南台灣陽光溫暖不悶熱，最適合戶外單車騎行',
+          description: '重工業海洋港都華麗轉型！輕軌串起駁二藝術特區、高雄流行音樂中心、大港橋與旗津海水浴場，城市開闊大氣，擁有濃厚的熱情海島活力。',
+          mapCoords: { x: 165, y: 485 },
+          climateTip: '冬季氣溫宜人宛如初夏，短袖搭配薄外套即可應付多數天氣。',
+          transportTips: '高雄捷運與輕軌路網成熟，持悠遊卡或一卡通隨搭隨走，更可搭乘鼓山渡輪前往旗津。',
+          accentColor: '#0891b2',
+          gradient: 'from-cyan-600 to-blue-700',
+          styles: ['urban', 'culture', 'food', 'nature'],
+          attractions: [
+            { name: '駁二藝術特區 & 高雄流行音樂中心', category: '文創藝術', description: '舊港灣倉庫改建為當代藝術展演場域，大港橋每天定期開合旋轉，高流宛如珊瑚海浪。', highlight: '下午看大港橋水平旋轉閉合、搭輕軌看愛河灣落日', addressOrArea: '高雄市鹽埕區大勇路' },
+            { name: '旗津老街與星空隧道', category: '美拍打卡', description: '搭乘鼓山渡輪5分鐘抵達海島小鎮，租借電動單車沿著海風大道騎行。', highlight: '登旗後燈塔觀賞高雄港全景、享用現撈海鮮熱炒', addressOrArea: '高雄市旗津區廟前路' }
+          ],
+          delicacies: [
+            { name: '旗津現撈海鮮與烤小卷', description: '漁港直送新鮮小卷抹上沙茶醬大火炭烤，彈牙多汁甘甜。', tags: ['海港風味', '夜市必吃'] },
+            { name: '鹽埕鴨肉珍 & 鴨肉飯', description: '六十年傳承煙燻鴨肉，淋上獨家香濃肉燥飯，鴨肉香嫩多汁。', tags: ['米其林推薦', '老鹽埕靈魂'] },
+            { name: '高雄大碗冰（海之冰）', description: '可點2倍到20倍超大臉盆冰，堆滿芒果香蕉新鮮水果與煉乳。', tags: ['渡船頭回憶', '消暑霸王'] }
+          ]
+        },
+        {
+          id: 'pingtung',
+          name: '屏東縣',
+          englishName: 'Pingtung',
+          region: 'south',
+          regionName: '南部地區',
+          tagline: '國境之南艷陽 · 墾丁白沙灣與小琉球綠蠵龜',
+          vibeTags: ['海島渡假', '海龜共游', '落日沙灘', '熱帶雨林'],
+          durationCategory: '3plus',
+          durationText: '三天兩夜海島放鬆',
+          recommendedSeason: '四季皆夏（夏季戲水衝浪、秋冬避寒慢活最舒適）',
+          description: '台灣最南端的熱帶度假勝地。墾丁國家公園的珊瑚礁海岸、鵝鑾鼻燈塔大草原，以及近海離島「小琉球」，更以近距離與野生綠蠵龜海中浮潛共游震撼人心。',
+          mapCoords: { x: 195, y: 550 },
+          climateTip: '秋冬「落山風」偶爾強烈，防風外套必備；夏季陽光極強烈，務必使用海洋友善防曬乳。',
+          transportTips: '自左營高鐵站搭乘墾丁快線巴士直達墾丁大街；至東港碼頭搭船20分鐘直達小琉球。',
+          accentColor: '#0284c7',
+          gradient: 'from-sky-500 to-teal-700',
+          styles: ['island', 'nature', 'food'],
+          attractions: [
+            { name: '墾丁白沙灣與龍磐大草原', category: '自然秘境', description: '貝殼沙細膩潔白的海灣，電影《少年Pi》拍攝地；龍磐公園石灰岩崩崖俯瞰太平洋波瀾壯闊。', highlight: '躺在龍磐草原看無光害滿天星斗、白沙灣看落日晚霞', addressOrArea: '屏東縣恆春鎮白砂路' },
+            { name: '小琉球珊瑚礁島嶼與花瓶岩', category: '自然秘境', description: '全台灣唯一的珊瑚礁島，海水清澈透底，是全世界綠蠵龜出沒密度最高的浮潛天堂。', highlight: '花瓶岩浮潛或自潛與海龜同游、傍晚落日亭看夕陽西下', addressOrArea: '屏東縣琉球鄉' }
+          ],
+          delicacies: [
+            { name: '萬巒林家豬腳', description: '特製中藥配方慢火滷透，豬皮Q軟彈牙毫無油膩感，蒜蓉沾醬堪稱一絕。', tags: ['屏東驕傲', '全台馳名'] },
+            { name: '東港黑鮪魚生魚片與雙糕潤', description: '油花宛如和牛的頂級黑鮪魚金三角，入口化開甜美回甘。', tags: ['東港三寶', '產地直嘗'] }
+          ]
+        },
+        {
+          id: 'hualien',
+          name: '花蓮縣',
+          englishName: 'Hualien',
+          region: 'east',
+          regionName: '東部地區',
+          tagline: '太魯閣鬼斧神工 · 七星潭月牙灣與清水斷崖',
+          vibeTags: ['大山大海', '縱谷慢活', '太平洋浪', '原民文化'],
+          durationCategory: '3plus',
+          durationText: '三天兩夜森呼吸',
+          recommendedSeason: '春夏秋皆宜（夏季賞鯨獨木舟，秋高氣爽騎車訪縱谷）',
+          description: '背倚中央山脈、面迎浩瀚太平洋。巍峨高聳的大理石峽谷太魯閣、七星潭圓滑礫石灘，以及縱谷中隨風起伏的金黃稻浪，是大自然最慷慨的療癒巨作。',
+          mapCoords: { x: 380, y: 285 },
+          climateTip: '台鐵花東線班次搶手，逢連續假期請提早14天訂票；山區遇大雨留意落石安全。',
+          transportTips: '搭乘台鐵EMU3000新自強號從台北出發約2小時可達，當地租車或租機車自駕最自由。',
+          accentColor: '#0d9488',
+          gradient: 'from-teal-600 to-cyan-700',
+          styles: ['nature', 'food', 'culture'],
+          attractions: [
+            { name: '七星潭海岸風景區', category: '自然秘境', description: '優美弧形的月牙灣海灘，海灘遍布被浪花沖刷得光滑如玉的鵝卵石與蔚藍碎浪。', highlight: '在海邊疊石頭許願、坐在礫石灘傾聽太平洋海浪翻滾聲', addressOrArea: '花蓮縣新城鄉海岸路' },
+            { name: '清水斷崖與崇德海灣SUP', category: '自然秘境', description: '垂直拔起800公尺以上的大斷崖直插太平洋深藍海水，清晨划SUP迎接海上日出。', highlight: '海上仰望鬼斧神工高聳斷崖、蘇花公路觀景台拍公路絕景', addressOrArea: '花蓮縣秀林鄉蘇花公路' },
+            { name: '東大門夜市', category: '夜市美食', description: '整合福町夜市、原住民一條街等多個區塊的超大型夜市，充滿竹筒飯與烤山豬肉香氣。', highlight: '品嚐原民風味小米酒、第一家烤肉串與強蛋餅', addressOrArea: '花蓮縣花蓮市中山路' }
+          ],
+          delicacies: [
+            { name: '炸彈蔥油餅（黃車/藍車）', description: '高溫熱油爆炸麵皮外酥內空，夾入半熟爆漿流心蛋，撒上蒜蓉甜辣醬。', tags: ['花蓮神級排隊', '下午茶必搶'] },
+            { name: '液香扁食 / 戴記扁食', description: '薄透如絲的餛飩皮包裹純黑豬肉餡，佐芹菜油蔥大骨清湯。', tags: ['蔣經國總統最愛', '百年純粹'] },
+            { name: '花蓮薯與奶油酥條', description: '在地甜心地瓜遵循古法烘焙，酥脆奶香濃郁的必買伴手禮。', tags: ['花蓮名產', '下午茶首選'] }
+          ]
+        },
+        {
+          id: 'taitung',
+          name: '台東縣',
+          englishName: 'Taitung',
+          region: 'east',
+          regionName: '東部地區',
+          tagline: '日出第一道光 · 池上伯朗稻浪與三仙台拱橋',
+          vibeTags: ['慢活公路', '伯朗大道', '熱氣球嘉年華', '金黃稻浪'],
+          durationCategory: '3plus',
+          durationText: '三天兩夜慢節奏',
+          recommendedSeason: '夏季（鹿野高台國際熱氣球節）、秋冬（池上金黃稻浪收割季）',
+          description: '全台灣空氣最純淨、節奏最舒緩的人間仙境。鹿野高台彩色熱氣球升空、池上金城武樹下騎單車奔馳於無電線桿的金黃稻海，沿著台11線海岸公路與太平洋對話。',
+          mapCoords: { x: 300, y: 440 },
+          climateTip: '紫外線強烈，遮陽帽與太陽眼鏡必備；公車班次間距較長，極建議自駕租車。',
+          transportTips: '搭乘台鐵至台東站，自駕沿台9線（縱谷線）或台11線（海線）皆是一生必走公路。',
+          accentColor: '#16a34a',
+          gradient: 'from-green-600 to-teal-800',
+          styles: ['nature', 'food', 'island'],
+          attractions: [
+            { name: '池上伯朗大道與天堂路', category: '美拍打卡', description: '一望無際遼闊無垠的稻田，筆直大道延伸至遠方中央山脈，沒有一支電線桿遮擋。', highlight: '租電動自行車微風徐徐穿梭稻浪、金城武樹下品茶打卡', addressOrArea: '台東縣池上鄉錦新三號道路' },
+            { name: '鹿野高台觀光茶園 & 熱氣球節', category: '休閒體驗', description: '縱谷高處視野開闊，每年夏季數十顆國際造型熱氣球與光雕音樂會點亮夜空。', highlight: '體驗熱氣球繫留升空俯瞰卑南溪、品味在地紅烏龍茶', addressOrArea: '台東縣鹿野鄉高台路' },
+            { name: '三仙台風景區', category: '自然秘境', description: '八拱紅色跨海人行步橋宛如長龍臥波，連接海中由火山岩構成的神秘仙島。', highlight: '迎接台灣本島元旦第一道曙光、探索島上海蝕柱與壺穴', addressOrArea: '台東縣成功鎮基翬路' }
+          ],
+          delicacies: [
+            { name: '池上全美行月台鐵路便當', description: '冠軍池上米顆粒飽滿Q彈，鋪滿燒肉、卜肉、滷蛋與經典柴魚酥。', tags: ['月台傳奇', '便當之王'] },
+            { name: '東河包子', description: '海岸公路超人氣點心，老麵皮香Q有勁，鮮肉餡加入蔥花胡椒肉汁豐沛。', tags: ['台11線必停', '銅板排隊'] },
+            { name: '卑南豬血湯與米苔目', description: '大塊滑嫩如布丁的新鮮豬血，撒上大量韭菜酸菜，搭配柴魚片乾拌米苔目。', tags: ['在地台東味', '米其林入選'] }
+          ]
+        },
+        {
+          id: 'penghu',
+          name: '澎湖縣',
+          englishName: 'Penghu',
+          region: 'islands',
+          regionName: '外島離島',
+          tagline: '玄武岩壯麗石柱 · 花火節燦爛與雙心石滬',
+          vibeTags: ['海上花火', '柱狀玄武岩', '仙人掌冰', '跳島浮潛'],
+          durationCategory: '3plus',
+          durationText: '三天兩夜～四天三夜跳島',
+          recommendedSeason: '春夏季4月～9月（澎湖國際海上花火節、風浪平穩）',
+          description: '由九十座島嶼組成的海上明珠。擁有世界遺產潛力點的大菓葉柱狀玄武岩、七美雙心石滬的浪漫傳奇、山水沙灘的金色沙灣，以及夏季絢爛的海上花火節。',
+          mapCoords: { x: 75, y: 335 },
+          climateTip: '10月至隔年3月東北季風極強勁風沙大，強烈建議4~9月前往旅遊。',
+          transportTips: '台北松山、台中、台南、高雄皆有國內線班機直飛馬公，夏季亦可自嘉義布袋搭客輪。',
+          accentColor: '#0284c7',
+          gradient: 'from-sky-500 to-blue-700',
+          styles: ['island', 'nature', 'food'],
+          attractions: [
+            { name: '七美雙心石滬與小台灣', category: '美拍打卡', description: '先民利用潮汐堆砌捕魚的石滬，在蔚藍清澈浪花中巧妙勾勒出兩顆相連愛心。', highlight: '退潮時俯瞰深淺不一的果凍海雙心石滬、拍小台灣海蝕平台', addressOrArea: '澎湖縣七美鄉' },
+            { name: '池東大菓葉柱狀玄武岩', category: '自然秘境', description: '火山熔岩海底冷卻收縮形成的壯麗垂直柱狀節理，雨後前方窪地倒影宛如天然美術館。', highlight: '撫摸數百萬年古老玄武岩壁、拍出磅礴地質大片', addressOrArea: '澎湖縣西嶼鄉池東村' }
+          ],
+          delicacies: [
+            { name: '通樑古榕易家仙人掌冰', description: '艷麗紫紅色的純天然仙人掌果肉汁，酸甜冰沙透心涼解膩。', tags: ['澎湖代表', '天然酸甜'] },
+            { name: '二崁杏仁茶與土豆粿', description: '古色古香咾咕石聚落中飄散香純研磨杏仁香氣，配油條剛出爐最對味。', tags: ['二崁古厝', '古法手作'] },
+            { name: '小管麵線與炸花枝丸', description: '澎湖清脆小管搭配滑順手工麵線，花枝丸咬下滿滿真實花枝塊。', tags: ['產地現撈', '海鮮必吃'] }
+          ]
+        },
+        {
+          id: 'kinmen',
+          name: '金門縣',
+          englishName: 'Kinmen',
+          region: 'islands',
+          regionName: '外島離島',
+          tagline: '閩南燕尾洋樓 · 戰地坑道與高粱風獅爺',
+          vibeTags: ['戰地歷史', '古厝燕尾', '高粱醇香', '牛肉饗宴'],
+          durationCategory: '3plus',
+          durationText: '三天兩夜歷史文化',
+          recommendedSeason: '秋季9月～11月天高氣爽、避開春季濃霧期',
+          description: '矗立於前線的歷史要塞，揉合了壯麗的閩南紅磚燕尾古厝、南洋歸國僑領打造的巴洛克洋樓，以及翟山坑道等震撼人心的地下花崗岩軍事奇蹟。',
+          mapCoords: { x: 50, y: 165 },
+          climateTip: '春季3~5月為霧季易導致航班停飛或延誤，建議預留行程彈性。',
+          transportTips: '台灣主要機場每日皆有密集班機直飛金門尚義機場，島上推薦租汽車或機車穿梭。',
+          accentColor: '#b45309',
+          gradient: 'from-amber-700 to-yellow-800',
+          styles: ['culture', 'food', 'nature'],
+          attractions: [
+            { name: '翟山坑道（地下軍事奇觀）', category: '歷史文化', description: '耗費五年純人工在堅硬花崗岩中炸鑿出的「A」字型水道坑道，水面倒影如夢似幻。', highlight: '走入恆溫涼爽的神秘軍事坑道、秋季欣賞坑道音樂節迴響', addressOrArea: '金門縣金城鎮古崗村' },
+            { name: '水頭聚落與得月樓洋樓', category: '歷史文化', description: '金門最富麗堂皇的傳統僑鄉聚落，得月樓防禦槍樓與紫雲衍派燕尾古厝交相輝映。', highlight: '欣賞細緻番仔樓磚雕剪黏、入住百年閩南古厝民宿', addressOrArea: '金門縣金城鎮前水頭' }
+          ],
+          delicacies: [
+            { name: '金門高粱全牛宴與牛肉乾', description: '以釀酒高粱酒糟飼養的黃牛，肉質甘甜油花香郁，老店特製酒香牛肉乾。', tags: ['金門第一特產', '香醇軟嫩'] },
+            { name: '永春廣東粥（無米粥）配油條', description: '大骨高湯將白米熬化無形，打入嫩蛋花、肉丸與厚實豬肝，沾老油條極品。', tags: ['金城排隊早餐', '暖心暖胃'] }
+          ]
+        },
+        {
+          id: 'matsu',
+          name: '連江縣（馬祖）',
+          englishName: 'Matsu',
+          region: 'islands',
+          regionName: '外島離島',
+          tagline: '國境最北藍眼淚 · 芹壁地中海石屋與老酒香',
+          vibeTags: ['藍眼淚奇蹟', '芹壁石屋', '老酒麵線', '東引燈塔'],
+          durationCategory: '3plus',
+          durationText: '三天兩夜～四天三夜跳島',
+          recommendedSeason: '4月至6月是追尋夢幻「藍眼淚」與踩星沙的最佳季節',
+          description: '散落在閩江口的奇岩列島，被譽為「台版地中海」的北竿芹壁花崗岩石屋、孤懸懸崖的東引白色燈塔，以及春夏夜裡在黑夜波浪間閃爍幽藍熒光的夜光藻「藍眼淚」。',
+          mapCoords: { x: 92, y: 55 },
+          climateTip: '地勢陡峭山路斜度大，騎乘機車須具備良好操控技術並減速慢行。',
+          transportTips: '可從松山或台中搭機至南竿/北竿，亦可從基隆港搭乘「新台馬輪」夜航臥鋪出發。',
+          accentColor: '#0369a1',
+          gradient: 'from-blue-600 to-indigo-800',
+          styles: ['island', 'nature', 'culture', 'food'],
+          attractions: [
+            { name: '北竿芹壁聚落（石頭城）', category: '歷史文化', description: '依山傍海層疊分布的閩東花崗岩人字砌石屋，屋頂壓瓦石避風，濃郁地中海異國情調。', highlight: '在海邊露天咖啡座看龜島品咖啡、細讀反共精神標語', addressOrArea: '連江縣北竿鄉芹壁村' },
+            { name: '北海坑道搖櫓賞藍眼淚', category: '自然秘境', description: '幽暗深邃的巨大水上花崗岩坑道，深夜搭乘傳統搖櫓木船輕撥水面，觸發點點藍光。', highlight: '體驗伸手撥水激起水下銀河般的藍眼淚璀璨熒光', addressOrArea: '連江縣南竿鄉仁愛村' }
+          ],
+          delicacies: [
+            { name: '馬祖老酒麵線與紅糟炒飯', description: '自釀陳年老酒溫補香醇，煎蛋吸飽老酒湯汁，伴隨細滑麵線令人沉醉。', tags: ['馬祖靈魂', '溫熱甘醇'] },
+            { name: '繼光餅（馬祖漢堡）', description: '炭烤老麵餅外圈沾滿芝麻，剖開夾入蔥花炒蛋與多汁厚切五花肉。', tags: ['傳統乾糧', '香氣撲鼻'] }
+          ]
+        }
+      ];
+
+      // 2. STATE MANAGEMENT
+      let currentDestination = TAIWAN_DATA.find(d => d.id === 'tainan') || TAIWAN_DATA[0];
+      let currentRegion = 'all';
+      let currentSearchQuery = '';
+      let currentDetailTab = 'attractions';
+      let mapZoom = 1;
+
+      // Audio Synthesis
+      let isAudioMuted = false;
+      let audioCtx = null;
+      function playAudioTick(freq = 600) {
+        if (isAudioMuted) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(freq * 0.6, audioCtx.currentTime + 0.04);
+          gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.04);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.04);
+        } catch(e) {}
+      }
+
+      function playAudioVictory() {
+        if (isAudioMuted) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const notes = [523.25, 659.25, 783.99, 1046.5];
+          notes.forEach((freq, idx) => {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.08);
+            gain.gain.setValueAtTime(0, audioCtx.currentTime + idx * 0.08);
+            gain.gain.linearRampToValueAtTime(0.12, audioCtx.currentTime + idx * 0.08 + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + idx * 0.08 + 0.45);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(audioCtx.currentTime + idx * 0.08);
+            osc.stop(audioCtx.currentTime + idx * 0.08 + 0.45);
+          });
+        } catch(e) {}
+      }
+
+      function toggleAudioMute() {
+        isAudioMuted = !isAudioMuted;
+        const btn = document.getElementById('sound-toggle-btn');
+        btn.innerHTML = isAudioMuted ? '<i data-lucide="volume-x" class="w-4 h-4"></i>' : '<i data-lucide="volume-2" class="w-4 h-4"></i>';
+        lucide.createIcons();
+      }
+
+      // LocalStorage Bucket List
+      const BUCKET_STORAGE_KEY = 'taiwan_travel_bucket_list_v2';
+      let bucketList = [];
+      function loadBucketList() {
+        try {
+          const raw = localStorage.getItem(BUCKET_STORAGE_KEY);
+          if (raw) {
+            bucketList = JSON.parse(raw);
+          } else {
+            bucketList = [
+              { id: 'init-1', destinationId: 'tainan', destinationName: '台南市', title: '台南清晨排隊吃溫體牛肉湯配肉燥飯', type: 'custom', category: '美食清單', note: '一定要配薑絲油膏！', isCompleted: true, addedAt: Date.now() - 86400000 * 5 },
+              { id: 'init-2', destinationId: 'hualien', destinationName: '花蓮縣', title: '七星潭月牙灣坐在礫石灘聽太平洋浪聲', type: 'attraction', category: '自然秘境', note: '記得挑一顆漂亮的石頭疊石頭許願', isCompleted: false, addedAt: Date.now() - 86400000 * 3 },
+              { id: 'init-3', destinationId: 'chiayi', destinationName: '嘉義縣市', title: '阿里山祝山線小火車迎接金色日出雲海', type: 'attraction', category: '自然秘境', note: '清晨氣溫很低要穿保暖羽絨衣', isCompleted: false, addedAt: Date.now() - 86400000 * 1 }
+            ];
+            saveBucketList();
+          }
+        } catch(e) {
+          bucketList = [];
+        }
+      }
+
+      function saveBucketList() {
+        try {
+          localStorage.setItem(BUCKET_STORAGE_KEY, JSON.stringify(bucketList));
+          updateBucketCounters();
+        } catch(e) {}
+      }
+
+      function updateBucketCounters() {
+        const total = bucketList.length;
+        const completed = bucketList.filter(i => i.isCompleted).length;
+        const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+        document.getElementById('header-bucket-count').innerText = `${completed}/${total}`;
+        document.getElementById('bucket-drawer-subtitle').innerText = `已踩點打卡 ${completed} / ${total} 個地點`;
+        document.getElementById('bucket-progress-text').innerText = `${percent}%`;
+        document.getElementById('bucket-progress-bar').style.width = `${percent}%`;
+      }
+
+      // 3. MAP RENDERING
+      function renderMapPins() {
+        const pinsLayer = document.getElementById('map-pins-layer');
+        if (!pinsLayer) return;
+
+        const filtered = getFilteredDestinations();
+
+        pinsLayer.innerHTML = TAIWAN_DATA.map(dest => {
+          const isSelected = currentDestination && currentDestination.id === dest.id;
+          const isVisible = filtered.some(d => d.id === dest.id);
+          const opacity = isVisible ? '1' : '0.25';
+          const scale = isSelected ? '1.25' : '1';
+
+          const labelOffset = (dest.id === 'yilan' || dest.id === 'hualien' || dest.id === 'keelung' || dest.id === 'new-taipei')
+            ? '12'
+            : (dest.id === 'penghu' || dest.id === 'kinmen')
+            ? '-38'
+            : (dest.id === 'tainan' || dest.id === 'kaohsiung' || dest.id === 'changhua' || dest.id === 'yunlin')
+            ? '-36'
+            : '10';
+
+          return `
+            <g transform="translate(${dest.mapCoords.x}, ${dest.mapCoords.y})"
+               class="cursor-pointer group"
+               opacity="${opacity}"
+               onclick="selectDestination('${dest.id}')"
+               onmouseenter="showMapTooltip('${dest.id}')"
+               onmouseleave="hideMapTooltip()">
+              ${isSelected ? `
+                <circle r="18" fill="${dest.accentColor}" opacity="0.25" class="pin-pulse"></circle>
+                <circle r="10" fill="none" stroke="${dest.accentColor}" stroke-width="1.5" opacity="0.6"></circle>
+              ` : ''}
+
+              <g transform="scale(${scale})">
+                <ellipse cx="0" cy="5" rx="5" ry="2.5" fill="#0f172a" opacity="0.2"></ellipse>
+                <circle cx="0" cy="0" r="6.5" fill="${isSelected ? '#ffffff' : dest.accentColor}" stroke="${isSelected ? dest.accentColor : '#ffffff'}" stroke-width="2.2"></circle>
+                <circle cx="0" cy="0" r="2.5" fill="${isSelected ? dest.accentColor : '#ffffff'}"></circle>
+              </g>
+
+              <g transform="translate(${labelOffset}, ${dest.id === 'taipei' ? -10 : 3})">
+                <rect x="-3" y="-9" width="${dest.name.length * 13 + 6}" height="17" rx="4"
+                      fill="${isSelected ? '#0f172a' : '#ffffff'}"
+                      stroke="${isSelected ? '#0f172a' : '#e2e8f0'}"
+                      stroke-width="1"></rect>
+                <text x="0" y="3.5" font-size="10" font-weight="${isSelected ? '700' : '600'}"
+                      fill="${isSelected ? '#ffffff' : '#1e293b'}" letter-spacing="0.5">
+                  ${dest.name}
+                </text>
+              </g>
+            </g>
+          `;
+        }).join('');
+      }
+
+      function zoomMap(delta) {
+        mapZoom = Math.min(Math.max(0.85, mapZoom + delta), 1.6);
+        document.getElementById('map-zoom-wrapper').style.transform = `scale(${mapZoom})`;
+      }
+
+      function resetZoomMap() {
+        mapZoom = 1;
+        document.getElementById('map-zoom-wrapper').style.transform = `scale(1)`;
+      }
+
+      function showMapTooltip(destId) {
+        const dest = TAIWAN_DATA.find(d => d.id === destId);
+        if (!dest || dest.id === currentDestination?.id) return;
+        const tooltip = document.getElementById('map-hover-tooltip');
+        document.getElementById('tooltip-title').innerText = `${dest.name} · ${dest.englishName}`;
+        document.getElementById('tooltip-duration').innerText = dest.durationText;
+        document.getElementById('tooltip-tagline').innerText = dest.tagline;
+        tooltip.classList.remove('hidden');
+      }
+
+      function hideMapTooltip() {
+        document.getElementById('map-hover-tooltip').classList.add('hidden');
+      }
+
+      // 4. FILTERING & SEARCH
+      function getFilteredDestinations() {
+        return TAIWAN_DATA.filter(dest => {
+          if (currentRegion !== 'all' && dest.region !== currentRegion) return false;
+          if (!currentSearchQuery.trim()) return true;
+          const q = currentSearchQuery.toLowerCase().trim();
+          const matchesName = dest.name.toLowerCase().includes(q) || dest.englishName.toLowerCase().includes(q) || dest.tagline.toLowerCase().includes(q);
+          const matchesAttraction = dest.attractions.some(a => a.name.toLowerCase().includes(q) || a.description.toLowerCase().includes(q));
+          const matchesDelicacy = dest.delicacies.some(d => d.name.toLowerCase().includes(q) || d.description.toLowerCase().includes(q));
+          return matchesName || matchesAttraction || matchesDelicacy;
+        });
+      }
+
+      function filterByRegion(region) {
+        currentRegion = region;
+        // update top nav
+        document.querySelectorAll('.nav-region-link').forEach(el => el.classList.remove('text-teal-700', 'font-semibold'));
+        const navEl = document.getElementById(`nav-${region}`);
+        if (navEl) navEl.classList.add('text-teal-700', 'font-semibold');
+
+        // update pills
+        document.querySelectorAll('.region-pill').forEach(btn => {
+          btn.className = 'region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-white border border-slate-200 text-slate-600 hover:text-slate-900';
+        });
+        const activePill = document.getElementById(`pill-${region}`);
+        if (activePill) {
+          activePill.className = 'region-pill px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap shrink-0 bg-slate-900 text-white shadow-xs';
+        }
+
+        renderMapPins();
+        renderQuickCityGrid();
+
+        const filtered = getFilteredDestinations();
+        document.getElementById('region-count-badge').innerText = `共 ${filtered.length} 個縣市地標`;
+
+        // If current destination not in filter, select first matching
+        if (filtered.length > 0 && !filtered.some(d => d.id === currentDestination?.id)) {
+          selectDestination(filtered[0].id, false);
+        }
+      }
+
+      function handleSearch(val) {
+        currentSearchQuery = val;
+        const clearBtn = document.getElementById('search-clear-btn');
+        if (val) {
+          clearBtn.classList.remove('hidden');
+        } else {
+          clearBtn.classList.add('hidden');
+        }
+        renderMapPins();
+        renderQuickCityGrid();
+
+        const filtered = getFilteredDestinations();
+        if (filtered.length > 0 && !filtered.some(d => d.id === currentDestination?.id)) {
+          selectDestination(filtered[0].id, false);
+        }
+      }
+
+      function clearSearch() {
+        const input = document.getElementById('search-input');
+        input.value = '';
+        handleSearch('');
+      }
+
+      function selectDestination(destId, autoSwitchMobile = true) {
+        const dest = TAIWAN_DATA.find(d => d.id === destId);
+        if (!dest) return;
+        currentDestination = dest;
+        renderMapPins();
+        renderQuickCityGrid();
+        renderDestinationDetail();
+
+        if (autoSwitchMobile && window.innerWidth < 1024) {
+          switchMobileTab('details');
+        }
+      }
+
+      function renderQuickCityGrid() {
+        const grid = document.getElementById('quick-city-grid');
+        const filtered = getFilteredDestinations();
+
+        grid.innerHTML = filtered.map(d => {
+          const isCurrent = currentDestination && currentDestination.id === d.id;
+          return `
+            <button onclick="selectDestination('${d.id}')"
+                    class="flex items-center justify-between px-2.5 py-2 rounded-xl text-left text-xs transition-all ${
+                      isCurrent
+                        ? 'bg-teal-50 border border-teal-300 text-teal-800 font-bold'
+                        : 'bg-slate-50/80 hover:bg-slate-100 border border-slate-200/70 text-slate-700'
+                    }">
+              <span class="truncate">${d.name}</span>
+              <i data-lucide="chevron-right" class="w-3 h-3 text-slate-400 shrink-0 ml-1"></i>
+            </button>
+          `;
+        }).join('');
+        lucide.createIcons();
+      }
+
+      // 5. DESTINATION DETAIL PANEL
+      function setDetailTab(tab) {
+        currentDetailTab = tab;
+        renderDestinationDetail();
+      }
+
+      function renderDestinationDetail() {
+        const container = document.getElementById('destination-detail-container');
+        if (!currentDestination) return;
+        const d = currentDestination;
+
+        const isCityInBucket = bucketList.some(item => item.destinationId === d.id && item.type === 'city');
+
+        let tabContent = '';
+
+        if (currentDetailTab === 'attractions') {
+          tabContent = `
+            <div class="space-y-4">
+              <p class="text-xs text-slate-500">${d.description}</p>
+              <div class="grid grid-cols-1 gap-4 pt-1">
+                ${d.attractions.map(attr => {
+                  const inBucket = bucketList.some(item => item.destinationId === d.id && item.title.includes(attr.name));
+                  return `
+                    <div class="p-4 rounded-xl border border-slate-200/90 hover:border-teal-400 bg-white transition-all shadow-2xs group">
+                      <div class="flex items-start justify-between gap-3 mb-2">
+                        <div>
+                          <div class="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                            <span class="font-medium text-teal-700">${attr.category}</span>
+                            <span aria-hidden="true">·</span>
+                            <span>${attr.addressOrArea}</span>
+                          </div>
+                          <h4 class="text-base font-bold text-slate-900 group-hover:text-teal-700 transition-colors">
+                            ${attr.name}
+                          </h4>
+                        </div>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <button onclick="openMapsSearch('${d.name} ${attr.name}')" class="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg" title="Google 地圖查看">
+                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                          </button>
+                          <button onclick="toggleBucketItem('${d.id}', '${d.name}', '${attr.name}（${d.name}）', 'attraction', '${attr.category}')"
+                                  class="p-1.5 rounded-lg text-xs font-medium transition-colors ${inBucket ? 'bg-teal-50 text-teal-700' : 'text-slate-400 hover:text-teal-600 hover:bg-slate-100'}"
+                                  title="${inBucket ? '已在願望清單中' : '加入願望清單'}">
+                            <i data-lucide="${inBucket ? 'bookmark-check' : 'bookmark'}" class="w-4 h-4 ${inBucket ? 'text-teal-600' : ''}"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <p class="text-sm text-slate-600 mb-2 leading-relaxed">${attr.description}</p>
+                      <div class="bg-slate-50 rounded-lg px-3 py-2 text-xs text-slate-700 flex items-start gap-2">
+                        <span class="font-semibold text-teal-700 shrink-0">特色亮點：</span>
+                        <span>${attr.highlight}</span>
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        } else if (currentDetailTab === 'delicacies') {
+          tabContent = `
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-slate-900">老饕認證必吃口袋名單</h3>
+                <span class="text-xs text-slate-500">走訪不可錯過的味覺記憶</span>
+              </div>
+              <div class="grid grid-cols-1 gap-3.5">
+                ${d.delicacies.map(del => {
+                  const inBucket = bucketList.some(item => item.destinationId === d.id && item.title.includes(del.name));
+                  return `
+                    <div class="p-4 rounded-xl border border-slate-200/90 bg-white hover:border-amber-300 transition-all shadow-2xs">
+                      <div class="flex items-start justify-between gap-3 mb-1.5">
+                        <h4 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                          <i data-lucide="utensils" class="w-4 h-4 text-amber-600"></i>
+                          ${del.name}
+                        </h4>
+                        <div class="flex items-center gap-1.5">
+                          <button onclick="openMapsSearch('${d.name} ${del.name}')" class="p-1.5 text-slate-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg" title="Google 地圖搜尋此美食">
+                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                          </button>
+                          <button onclick="toggleBucketItem('${d.id}', '${d.name}', '品嚐 ${d.name} ${del.name}', 'custom', '美食清單')"
+                                  class="p-1.5 rounded-lg text-xs font-medium transition-colors ${inBucket ? 'bg-amber-50 text-amber-700' : 'text-slate-400 hover:text-amber-600 hover:bg-slate-100'}"
+                                  title="${inBucket ? '已在清單中' : '加入清單'}">
+                            <i data-lucide="${inBucket ? 'bookmark-check' : 'bookmark'}" class="w-4 h-4 ${inBucket ? 'text-amber-600' : ''}"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <p class="text-sm text-slate-600 leading-relaxed mb-2.5">${del.description}</p>
+                      <div class="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                        ${del.tags.map((tag, idx) => `<span class="text-amber-700">${tag}</span>${idx < del.tags.length - 1 ? '<span aria-hidden="true">·</span>' : ''}`).join('')}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        } else {
+          tabContent = `
+            <div class="space-y-4">
+              <div class="p-4 rounded-xl border border-slate-200/90 bg-slate-50/60">
+                <h4 class="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <i data-lucide="navigation" class="w-4 h-4 text-teal-600"></i>
+                  交通接駁與自駕指引
+                </h4>
+                <p class="text-sm text-slate-600 leading-relaxed">${d.transportTips}</p>
+              </div>
+              <div class="p-4 rounded-xl border border-slate-200/90 bg-slate-50/60">
+                <h4 class="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <i data-lucide="clock" class="w-4 h-4 text-sky-600"></i>
+                  建議出遊天數配置
+                </h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                  推薦以【${d.durationText}】進行探索。若時間充裕，建議搭配周邊特色鄉鎮串聯成深度度假行程。
+                </p>
+              </div>
+              <div class="p-4 rounded-xl border border-slate-200/90 bg-slate-50/60">
+                <h4 class="text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                  <i data-lucide="cloud-sun" class="w-4 h-4 text-amber-600"></i>
+                  四季天氣與衣著建議
+                </h4>
+                <p class="text-sm text-slate-600 leading-relaxed">
+                  ${d.climateTip} 出發前請留意中央氣象署最新天氣預報，備妥隨身水壺與防曬用品。
+                </p>
+              </div>
+            </div>
+          `;
+        }
+
+        container.innerHTML = `
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden flex flex-col">
+            <!-- Header Banner -->
+            <div class="p-6 sm:p-7 bg-gradient-to-r ${d.gradient} text-white relative">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <div class="flex items-center gap-2 text-xs font-medium text-white/80 mb-1.5 tracking-wide">
+                    <span>${d.regionName}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>${d.englishName}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>${d.durationText}</span>
+                  </div>
+                  <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-white mb-2">
+                    ${d.name}
+                  </h2>
+                  <p class="text-sm text-white/90 font-medium max-w-xl">
+                    ${d.tagline}
+                  </p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <button onclick="toggleBucketItem('${d.id}', '${d.name}', '暢遊 ${d.name}（${d.tagline}）', 'city', '城市總覽')"
+                          class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold backdrop-blur-md transition-all ${
+                            isCityInBucket ? 'bg-white text-slate-900 shadow-sm' : 'bg-white/20 text-white hover:bg-white/30'
+                          }">
+                    <i data-lucide="${isCityInBucket ? 'bookmark-check' : 'bookmark'}" class="w-3.5 h-3.5 ${isCityInBucket ? 'text-teal-600' : ''}"></i>
+                    <span>${isCityInBucket ? '已加入願望清單' : '收藏整個城市'}</span>
+                  </button>
+                  <button onclick="shareCitySummary()" class="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-all">
+                    <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+                    <span id="share-btn-text">分享</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Vibe Tags -->
+              <div class="mt-4 pt-3 border-t border-white/20 flex flex-wrap items-center gap-2 text-xs text-white/85">
+                <span class="font-semibold text-white/95">城市風格：</span>
+                ${d.vibeTags.map((vibe, idx) => `<span>${vibe}</span>${idx < d.vibeTags.length - 1 ? '<span aria-hidden="true" class="opacity-60">·</span>' : ''}`).join('')}
+              </div>
+            </div>
+
+            <!-- Practical Tips Strip -->
+            <div class="bg-slate-50/90 px-6 py-3.5 border-b border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600">
+              <div class="flex items-start gap-2">
+                <i data-lucide="calendar" class="w-4 h-4 text-teal-600 shrink-0 mt-0.5"></i>
+                <div>
+                  <span class="font-medium text-slate-900">推薦季節：</span>
+                  <span>${d.recommendedSeason}</span>
+                </div>
+              </div>
+              <div class="flex items-start gap-2">
+                <i data-lucide="cloud-sun" class="w-4 h-4 text-sky-600 shrink-0 mt-0.5"></i>
+                <div>
+                  <span class="font-medium text-slate-900">氣候叮嚀：</span>
+                  <span>${d.climateTip}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <div class="px-6 pt-4 border-b border-slate-200/80 flex items-center gap-2">
+              <button onclick="setDetailTab('attractions')"
+                      class="flex items-center gap-2 pb-3 px-2 text-sm font-semibold border-b-2 transition-all ${
+                        currentDetailTab === 'attractions' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+                      }">
+                <i data-lucide="compass" class="w-4 h-4"></i>
+                <span>精選必訪景點 (${d.attractions.length})</span>
+              </button>
+              <button onclick="setDetailTab('delicacies')"
+                      class="flex items-center gap-2 pb-3 px-2 text-sm font-semibold border-b-2 transition-all ${
+                        currentDetailTab === 'delicacies' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+                      }">
+                <i data-lucide="utensils" class="w-4 h-4"></i>
+                <span>在地必吃美食 (${d.delicacies.length})</span>
+              </button>
+              <button onclick="setDetailTab('transport')"
+                      class="flex items-center gap-2 pb-3 px-2 text-sm font-semibold border-b-2 transition-all ${
+                        currentDetailTab === 'transport' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-800'
+                      }">
+                <i data-lucide="bus" class="w-4 h-4"></i>
+                <span>交通與行程叮嚀</span>
+              </button>
+            </div>
+
+            <!-- Panel Content -->
+            <div class="p-6 flex-1 overflow-y-auto max-h-[520px]">
+              ${tabContent}
+            </div>
+
+            <!-- Footer Quick Action -->
+            <div class="p-4 border-t border-slate-200/80 bg-slate-50/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div class="text-slate-500">心動了嗎？隨時出發探險</div>
+              <div class="flex items-center gap-2">
+                <button onclick="openMapsSearch('${d.name}')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:text-slate-900 font-medium">
+                  <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                  Google 地圖搜尋
+                </button>
+                <button onclick="openRandomPickerModal()" class="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-2xs">
+                  換一個命運地點
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+        lucide.createIcons();
+      }
+
+      function openMapsSearch(query) {
+        window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+      }
+
+      function shareCitySummary() {
+        if (!currentDestination) return;
+        const d = currentDestination;
+        const text = `【台灣出遊靈感】我正在看《${d.name} · ${d.tagline}》！推薦景點：${d.attractions.map(a => a.name).join('、')}。在地必吃：${d.delicacies.map(del => del.name).join('、')}！`;
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(text);
+          const btnText = document.getElementById('share-btn-text');
+          if (btnText) {
+            btnText.innerText = '已複製！';
+            setTimeout(() => { if (btnText) btnText.innerText = '分享'; }, 2000);
+          }
+        }
+      }
+
+      // 6. RANDOM PICKER MODAL
+      let randomSelectedRegion = 'all';
+      let randomSelectedStyle = 'all';
+      let isRolling = false;
+      let rollIntervalId = null;
+
+      function openRandomPickerModal() {
+        document.getElementById('random-picker-modal').classList.remove('hidden');
+        renderRandomFilters();
+        resetRandomStage();
+      }
+
+      function closeRandomPickerModal() {
+        if (isRolling) return;
+        if (rollIntervalId) clearTimeout(rollIntervalId);
+        document.getElementById('random-picker-modal').classList.add('hidden');
+      }
+
+      function renderRandomFilters() {
+        const regionContainer = document.getElementById('random-region-filters');
+        const styleContainer = document.getElementById('random-style-filters');
+
+        const regions = [
+          { id: 'all', label: '全台灣' },
+          { id: 'north', label: '北部' },
+          { id: 'central', label: '中部' },
+          { id: 'south', label: '南部' },
+          { id: 'east', label: '東部' },
+          { id: 'islands', label: '外島離島' }
+        ];
+
+        regionContainer.innerHTML = regions.map(r => `
+          <button onclick="setRandomRegionFilter('${r.id}')"
+                  class="px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    randomSelectedRegion === r.id ? 'bg-teal-700 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                  }">
+            ${r.label}
+          </button>
+        `).join('');
+
+        const styles = [
+          { id: 'all', label: '不拘風格' },
+          { id: 'food', label: '美食巡禮' },
+          { id: 'nature', label: '自然山海' },
+          { id: 'urban', label: '城市漫步' },
+          { id: 'culture', label: '歷史古蹟' },
+          { id: 'island', label: '海島慢活' }
+        ];
+
+        styleContainer.innerHTML = styles.map(s => `
+          <button onclick="setRandomStyleFilter('${s.id}')"
+                  class="px-2.5 py-1 text-xs font-medium rounded-lg transition-colors ${
+                    randomSelectedStyle === s.id ? 'bg-sky-600 text-white' : 'bg-white text-slate-600 border border-slate-200'
+                  }">
+            ${s.label}
+          </button>
+        `).join('');
+      }
+
+      function setRandomRegionFilter(r) {
+        if (isRolling) return;
+        randomSelectedRegion = r;
+        renderRandomFilters();
+      }
+
+      function setRandomStyleFilter(s) {
+        if (isRolling) return;
+        randomSelectedStyle = s;
+        renderRandomFilters();
+      }
+
+      function resetRandomStage() {
+        document.getElementById('random-filters-section').classList.remove('hidden');
+        document.getElementById('stage-idle-state').classList.remove('hidden');
+        document.getElementById('stage-rolling-state').classList.add('hidden');
+        document.getElementById('stage-winner-state').classList.add('hidden');
+
+        document.getElementById('random-modal-actions').innerHTML = `
+          <button onclick="closeRandomPickerModal()" class="px-4 py-2.5 text-xs text-slate-600 hover:text-slate-900 font-medium">取消</button>
+          <button onclick="startRandomPicker()" class="px-6 py-2.5 bg-gradient-to-r from-teal-600 via-sky-600 to-indigo-600 text-white font-bold text-sm rounded-xl shadow-md flex items-center gap-2">
+            <i data-lucide="dice-5" class="w-4 h-4"></i>
+            <span>開始命運隨機抽籤！</span>
+          </button>
+        `;
+        lucide.createIcons();
+      }
+
+      function startRandomPicker() {
+        if (isRolling) return;
+
+        // candidate pool
+        let pool = TAIWAN_DATA.filter(d => {
+          if (randomSelectedRegion !== 'all' && d.region !== randomSelectedRegion) return false;
+          if (randomSelectedStyle !== 'all' && !d.styles.includes(randomSelectedStyle)) return false;
+          return true;
+        });
+        if (pool.length === 0) pool = TAIWAN_DATA;
+
+        isRolling = true;
+        document.getElementById('random-filters-section').classList.add('hidden');
+        document.getElementById('stage-idle-state').classList.add('hidden');
+        document.getElementById('stage-winner-state').classList.add('hidden');
+        document.getElementById('stage-rolling-state').classList.remove('hidden');
+
+        let stepCount = 0;
+        const maxSteps = 24 + Math.floor(Math.random() * 8);
+        let interval = 50;
+
+        const winner = pool[Math.floor(Math.random() * pool.length)];
+
+        function step() {
+          stepCount++;
+          const temp = pool[Math.floor(Math.random() * pool.length)];
+          document.getElementById('rolling-city-name').innerText = temp.name;
+          document.getElementById('rolling-tagline').innerText = temp.tagline;
+          playAudioTick(500 + (stepCount % 8) * 40);
+
+          if (stepCount >= maxSteps) {
+            // Settled on winner
+            isRolling = false;
+            document.getElementById('stage-rolling-state').classList.add('hidden');
+            const winnerStage = document.getElementById('stage-winner-state');
+            winnerStage.classList.remove('hidden');
+
+            document.getElementById('winner-city-name').innerText = winner.name;
+            document.getElementById('winner-meta').innerText = `${winner.regionName} · ${winner.englishName} · ${winner.durationText}`;
+            document.getElementById('winner-tagline').innerText = winner.tagline;
+
+            document.getElementById('winner-highlights-box').innerHTML = `
+              <div class="flex items-center gap-1.5 text-teal-300 font-semibold">
+                <i data-lucide="compass" class="w-3.5 h-3.5"></i>
+                <span>必去景點：</span>
+                <span class="text-white font-normal truncate">${winner.attractions.slice(0, 2).map(a => a.name).join('、')}</span>
+              </div>
+              <div class="flex items-center gap-1.5 text-amber-300 font-semibold">
+                <i data-lucide="utensils" class="w-3.5 h-3.5"></i>
+                <span>特色美食：</span>
+                <span class="text-white font-normal truncate">${winner.delicacies.slice(0, 2).map(d => d.name).join('、')}</span>
+              </div>
+            `;
+            lucide.createIcons();
+
+            playAudioVictory();
+            fireConfetti();
+
+            document.getElementById('random-modal-actions').innerHTML = `
+              <button onclick="startRandomPicker()" class="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-700 hover:text-slate-900 font-medium text-xs">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                再抽一次
+              </button>
+              <div class="flex items-center gap-2">
+                <button onclick="toggleBucketItem('${winner.id}', '${winner.name}', '命運選中：暢遊 ${winner.name}', 'city', '命運抽籤'); this.innerText='已收進清單！';"
+                        class="px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-slate-800 hover:bg-slate-100 font-medium text-xs">
+                  加入願望清單
+                </button>
+                <button onclick="selectDestination('${winner.id}'); closeRandomPickerModal();"
+                        class="px-4 py-2.5 bg-gradient-to-r from-teal-600 to-sky-600 hover:from-teal-700 hover:to-sky-700 text-white font-semibold text-xs rounded-xl shadow-xs">
+                  立即查看詳情 →
+                </button>
+              </div>
+            `;
+            lucide.createIcons();
+          } else {
+            if (stepCount > maxSteps - 10) interval += 35;
+            else if (stepCount > maxSteps - 5) interval += 70;
+            rollIntervalId = setTimeout(step, interval);
+          }
+        }
+
+        rollIntervalId = setTimeout(step, interval);
+      }
+
+      function fireConfetti() {
+        if (typeof confetti !== 'function') return;
+        confetti({ particleCount: 80, angle: 60, spread: 55, origin: { x: 0.1, y: 0.7 }, colors: ['#0d9488', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6'] });
+        confetti({ particleCount: 80, angle: 120, spread: 55, origin: { x: 0.9, y: 0.7 }, colors: ['#0d9488', '#0ea5e9', '#f59e0b', '#ec4899', '#8b5cf6'] });
+        setTimeout(() => {
+          confetti({ particleCount: 100, spread: 100, origin: { y: 0.5 }, colors: ['#10b981', '#38bdf8', '#facc15', '#fb7185'] });
+        }, 250);
+      }
+
+      // 7. BUCKET LIST DRAWER
+      let currentBucketFilter = 'all';
+
+      function toggleBucketDrawer(isOpen) {
+        const drawer = document.getElementById('bucket-list-drawer-backdrop');
+        if (isOpen) {
+          drawer.classList.remove('hidden');
+          renderBucketItems();
+          populateCustomDestSelect();
+        } else {
+          drawer.classList.add('hidden');
+        }
+      }
+
+      function populateCustomDestSelect() {
+        const select = document.getElementById('custom-dest-select');
+        select.innerHTML = TAIWAN_DATA.map(d => `<option value="${d.id}">${d.name} (${d.regionName})</option>`).join('');
+      }
+
+      function setBucketFilter(f) {
+        currentBucketFilter = f;
+        ['all', 'pending', 'completed'].forEach(key => {
+          const btn = document.getElementById(`bfilter-${key}`);
+          if (btn) {
+            btn.className = key === f ? 'px-2.5 py-1 rounded-md bg-white text-slate-900 shadow-2xs font-semibold' : 'px-2.5 py-1 rounded-md text-slate-600 hover:text-slate-900';
+          }
+        });
+        renderBucketItems();
+      }
+
+      function toggleCustomForm(show) {
+        const form = document.getElementById('custom-bucket-form');
+        if (show === undefined) {
+          form.classList.toggle('hidden');
+        } else if (show) {
+          form.classList.remove('hidden');
+        } else {
+          form.classList.add('hidden');
+        }
+      }
+
+      function handleSaveCustomItem(e) {
+        e.preventDefault();
+        const destId = document.getElementById('custom-dest-select').value;
+        const title = document.getElementById('custom-title-input').value.trim();
+        const note = document.getElementById('custom-note-input').value.trim();
+        if (!title) return;
+
+        const matched = TAIWAN_DATA.find(d => d.id === destId);
+        const newItem = {
+          id: `custom-${Date.now()}`,
+          destinationId: destId,
+          destinationName: matched ? matched.name : '自訂地點',
+          title: title,
+          type: 'custom',
+          category: '私房備忘',
+          note: note || undefined,
+          isCompleted: false,
+          addedAt: Date.now()
+        };
+        bucketList.unshift(newItem);
+        saveBucketList();
+        renderBucketItems();
+
+        document.getElementById('custom-title-input').value = '';
+        document.getElementById('custom-note-input').value = '';
+        toggleCustomForm(false);
+      }
+
+      function toggleBucketItem(destId, destName, title, type, category) {
+        const idx = bucketList.findIndex(i => i.destinationId === destId && i.title === title && i.type === type);
+        if (idx >= 0) {
+          bucketList.splice(idx, 1);
+        } else {
+          bucketList.unshift({
+            id: `item-${Date.now()}`,
+            destinationId: destId,
+            destinationName: destName,
+            title: title,
+            type: type,
+            category: category,
+            isCompleted: false,
+            addedAt: Date.now()
+          });
+        }
+        saveBucketList();
+        renderDestinationDetail();
+        renderBucketItems();
+      }
+
+      function toggleItemCompleted(id) {
+        const item = bucketList.find(i => i.id === id);
+        if (item) {
+          item.isCompleted = !item.isCompleted;
+          item.completedAt = item.isCompleted ? Date.now() : undefined;
+          saveBucketList();
+          renderBucketItems();
+        }
+      }
+
+      function deleteBucketItem(id) {
+        bucketList = bucketList.filter(i => i.id !== id);
+        saveBucketList();
+        renderDestinationDetail();
+        renderBucketItems();
+      }
+
+      function renderBucketItems() {
+        const listContainer = document.getElementById('bucket-items-list');
+        const items = bucketList.filter(i => {
+          if (currentBucketFilter === 'pending') return !i.isCompleted;
+          if (currentBucketFilter === 'completed') return i.isCompleted;
+          return true;
+        });
+
+        if (items.length === 0) {
+          listContainer.innerHTML = `
+            <div class="text-center py-12 px-4">
+              <i data-lucide="bookmark-check" class="w-10 h-10 text-slate-300 mx-auto mb-3"></i>
+              <p class="text-sm font-medium text-slate-700 mb-1">
+                ${currentBucketFilter === 'completed' ? '尚無已打卡的紀錄' : currentBucketFilter === 'pending' ? '所有願望皆已達成！' : '願望清單目前是空的'}
+              </p>
+              <p class="text-xs text-slate-500 max-w-xs mx-auto">
+                點擊城市或景點卡片上的書籤圖示，隨時收錄你的心動名單！
+              </p>
+            </div>
+          `;
+          lucide.createIcons();
+          return;
+        }
+
+        listContainer.innerHTML = items.map(item => `
+          <div class="p-3.5 rounded-xl border transition-all flex items-start gap-3 group ${
+            item.isCompleted ? 'bg-slate-50/80 border-slate-200 text-slate-500' : 'bg-white border-slate-200 hover:border-teal-300 shadow-2xs'
+          }">
+            <button onclick="toggleItemCompleted('${item.id}')" class="mt-0.5 text-slate-400 hover:text-teal-600 transition-colors shrink-0">
+              <i data-lucide="${item.isCompleted ? 'check-circle' : 'circle'}" class="w-4 h-4 ${item.isCompleted ? 'text-emerald-600' : ''}"></i>
+            </button>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-1.5 text-[11px] text-slate-400 mb-0.5">
+                <button onclick="selectDestination('${item.destinationId}'); toggleBucketDrawer(false);" class="font-semibold text-teal-700 hover:underline inline-flex items-center gap-1">
+                  <i data-lucide="map-pin" class="w-3 h-3"></i>
+                  ${item.destinationName}
+                </button>
+                ${item.category ? `<span aria-hidden="true">·</span><span>${item.category}</span>` : ''}
+              </div>
+              <h4 class="text-sm font-medium leading-snug break-words ${item.isCompleted ? 'line-through text-slate-400' : 'text-slate-800'}">
+                ${item.title}
+              </h4>
+              ${item.note ? `<p class="text-xs text-slate-500 mt-1 bg-slate-50 p-1.5 rounded-md border border-slate-100">筆記：${item.note}</p>` : ''}
+            </div>
+            <button onclick="deleteBucketItem('${item.id}')" class="opacity-40 group-hover:opacity-100 p-1 text-slate-400 hover:text-rose-600 transition-all shrink-0">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+        `).join('');
+        lucide.createIcons();
+      }
+
+      function exportBucketListText() {
+        if (bucketList.length === 0) return;
+        const completed = bucketList.filter(i => i.isCompleted).length;
+        const total = bucketList.length;
+        const lines = [
+          '【我的台灣出遊願望清單 & 踩點筆記】',
+          `完成進度：${completed}/${total}`,
+          '--------------------------------',
+          ...bucketList.map((item, idx) => `${idx + 1}. [${item.isCompleted ? '✓ 已打卡' : '待出發'}] ${item.destinationName} - ${item.title}${item.note ? `（筆記：${item.note}）` : ''}`)
+        ];
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(lines.join('\n'));
+          const label = document.getElementById('export-btn-label');
+          label.innerText = '已複製到剪貼簿！';
+          setTimeout(() => { label.innerText = '匯出複製行程'; }, 2000);
+        }
+      }
+
+      // 8. MOBILE RESPONSIVE TAB SWITCHER
+      function switchMobileTab(tab) {
+        const colMap = document.getElementById('col-map');
+        const colDetails = document.getElementById('col-details');
+        const btnMap = document.getElementById('mobile-tab-btn-map');
+        const btnDetails = document.getElementById('mobile-tab-btn-details');
+
+        if (tab === 'map') {
+          colMap.classList.remove('hidden');
+          colDetails.classList.add('hidden');
+          btnMap.className = 'flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition-all';
+          btnDetails.className = 'flex-1 py-1.5 rounded-lg text-slate-600 transition-all';
+        } else {
+          colMap.classList.add('hidden');
+          colDetails.classList.remove('hidden');
+          btnDetails.className = 'flex-1 py-1.5 rounded-lg bg-white text-slate-900 shadow-xs transition-all';
+          btnMap.className = 'flex-1 py-1.5 rounded-lg text-slate-600 transition-all';
+        }
+      }
+
+      // 9. INITIALIZATION
+      document.addEventListener('DOMContentLoaded', () => {
+        loadBucketList();
+        renderMapPins();
+        renderQuickCityGrid();
+        renderDestinationDetail();
+        updateBucketCounters();
+        lucide.createIcons();
+
+        // Close drawer/modals on backdrop click or ESC
+        document.getElementById('bucket-list-drawer-backdrop').addEventListener('click', (e) => {
+          if (e.target.id === 'bucket-list-drawer-backdrop') toggleBucketDrawer(false);
+        });
+        document.getElementById('random-picker-modal').addEventListener('click', (e) => {
+          if (e.target.id === 'random-picker-modal') closeRandomPickerModal();
+        });
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') {
+            closeRandomPickerModal();
+            toggleBucketDrawer(false);
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
